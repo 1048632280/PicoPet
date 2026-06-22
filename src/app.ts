@@ -37,6 +37,7 @@ export async function boot(): Promise<string> {
   const image = new Image();
   image.onload = () => {
     renderer.setImage(image);
+    renderer.renderFrame(0);
     requestAnimationFrame(tick);
   };
   image.onerror = () => renderer.renderFallback();

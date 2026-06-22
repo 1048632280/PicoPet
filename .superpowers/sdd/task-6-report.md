@@ -41,3 +41,28 @@ DONE
 ## Concerns
 
 - Plain `pnpm` is not installed in this shell; all commands were run with `corepack pnpm` or `corepack pnpm exec`.
+
+## Review Fix: Paused Startup Initial Render
+
+### Summary
+
+- Fixed paused startup rendering by drawing frame 0 immediately after the idle image loads, before entering the pause-aware RAF loop.
+- Added focused app-level coverage proving a paused restored config still triggers the initial canvas clear/draw path after image load.
+
+### TDD Evidence
+
+1. RED: Added `src/app.test.ts` coverage for paused startup image load.
+2. RED verification:
+   - `corepack pnpm exec vitest --run src/app.test.ts`
+   - Result: failed as expected because `clearRect` / `drawImage` were never called after image load.
+3. GREEN: Updated `src/app.ts` to call `renderer.renderFrame(0)` in `image.onload`.
+4. GREEN verification:
+   - `corepack pnpm exec vitest --run src/app.test.ts`
+   - Result: 1 test file passed, 2 tests passed.
+
+### Verification
+
+- `corepack pnpm exec vitest --run src/app.test.ts src/tauri/window.test.ts`
+  - Result: 2 test files passed, 3 tests passed.
+- `corepack pnpm build`
+  - Result: TypeScript check and Vite production build passed.
