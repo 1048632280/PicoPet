@@ -44,6 +44,17 @@ impl AppConfig {
         self
     }
 
+    pub fn scaled_window_side(&self) -> i32 {
+        (PET_WINDOW_WIDTH as f64 * self.window.scale.clamp(MIN_SCALE, MAX_SCALE)).round() as i32
+    }
+
+    pub fn placed_at_bottom_right(mut self, screen_width: i32, screen_height: i32) -> Self {
+        let side = self.scaled_window_side();
+        self.window.x = (screen_width - side - SCREEN_MARGIN).max(0);
+        self.window.y = (screen_height - side - SCREEN_MARGIN).max(0);
+        self
+    }
+
     pub fn with_screen_bounds(self, screen_width: i32, screen_height: i32) -> Self {
         self.with_window_bounds(
             screen_width,
@@ -216,5 +227,33 @@ mod tests {
 
         assert_eq!(normalized.window.x, 1680);
         assert_eq!(normalized.window.y, 840);
+    }
+
+    #[test]
+    fn explicit_bottom_right_reset_moves_visible_default_position() {
+        let config = AppConfig::default();
+
+        let reset = config.placed_at_bottom_right(1920, 1080);
+
+        assert_eq!(reset.window.x, 1680);
+        assert_eq!(reset.window.y, 840);
+    }
+
+    #[test]
+    fn explicit_bottom_right_reset_uses_scaled_window_size_and_preserves_fields() {
+        let mut config = AppConfig::default();
+        config.window.x = 25;
+        config.window.y = 35;
+        config.window.scale = 1.5;
+        config.window.click_through = true;
+        config.animation.paused = true;
+
+        let reset = config.placed_at_bottom_right(1920, 1080);
+
+        assert_eq!(reset.window.x, 1600);
+        assert_eq!(reset.window.y, 760);
+        assert_eq!(reset.window.scale, 1.5);
+        assert!(reset.window.click_through);
+        assert!(reset.animation.paused);
     }
 }

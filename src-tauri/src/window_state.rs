@@ -15,7 +15,7 @@ fn derive_startup_window_state(
     screen_width: i32,
     screen_height: i32,
 ) -> StartupWindowState {
-    let side = (160.0 * config.window.scale).round() as u32;
+    let side = config.scaled_window_side() as u32;
     let config =
         config
             .clone()

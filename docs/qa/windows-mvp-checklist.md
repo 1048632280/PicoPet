@@ -5,6 +5,7 @@
 - Windows 10 or Windows 11
 - WebView2 Runtime installed or installer can bootstrap it
 - Built with `pnpm tauri build --debug`
+- If plain `pnpm` is unavailable but `corepack pnpm` works, create user-writable shims with `corepack enable --install-directory "$env:LOCALAPPDATA\CorepackShims"` and prepend that directory to `PATH` before running `pnpm check`.
 
 ## Manual Checks
 

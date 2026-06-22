@@ -53,7 +53,21 @@ pub fn reset_window_position(
     let size = monitor.map(|monitor| *monitor.size());
     let width = size.as_ref().map(|size| size.width as i32).unwrap_or(1920);
     let height = size.as_ref().map(|size| size.height as i32).unwrap_or(1080);
-    let config = AppConfig::default().with_screen_bounds(width, height);
+    let config = state
+        .config
+        .lock()
+        .map_err(|_| "config lock is poisoned".to_string())?
+        .clone()
+        .sanitized()
+        .placed_at_bottom_right(width, height);
+    let side = config.scaled_window_side() as u32;
+
+    window
+        .set_size(tauri::Size::Physical(tauri::PhysicalSize {
+            width: side,
+            height: side,
+        }))
+        .map_err(|error| error.to_string())?;
 
     window
         .set_position(tauri::Position::Physical(tauri::PhysicalPosition {

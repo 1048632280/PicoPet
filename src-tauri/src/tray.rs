@@ -36,10 +36,14 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     let exit = MenuItem::with_id(app, EXIT_ID, "退出", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&pause, &click_through, &reset, &exit])?;
 
-    TrayIconBuilder::new()
+    let mut tray_builder = TrayIconBuilder::new()
         .menu(&menu)
-        .show_menu_on_left_click(true)
-        .build(app)?;
+        .tooltip("PicoPet")
+        .show_menu_on_left_click(true);
+    if let Some(icon) = app.default_window_icon().cloned() {
+        tray_builder = tray_builder.icon(icon);
+    }
+    tray_builder.build(app)?;
 
     let app_handle = app.clone();
     let pause_item = pause.clone();
