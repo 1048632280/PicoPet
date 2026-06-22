@@ -10,7 +10,7 @@ const MAX_SCALE: f64 = 2.0;
 const DEFAULT_IDLE_FPS: u16 = 12;
 const DEFAULT_INTERACTIVE_FPS: u16 = 30;
 const PET_WINDOW_WIDTH: i32 = 160;
-const PET_WINDOW_HEIGHT: i32 = 180;
+const PET_WINDOW_HEIGHT: i32 = 160;
 const SCREEN_MARGIN: i32 = 80;
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -200,6 +200,6 @@ mod tests {
         let normalized = config.with_screen_bounds(1920, 1080);
 
         assert_eq!(normalized.window.x, 1680);
-        assert_eq!(normalized.window.y, 820);
+        assert_eq!(normalized.window.y, 840);
     }
 }

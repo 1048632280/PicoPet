@@ -1,4 +1,4 @@
-mod config;
+pub mod config;
 
 pub fn run() {
     tauri::Builder::default()

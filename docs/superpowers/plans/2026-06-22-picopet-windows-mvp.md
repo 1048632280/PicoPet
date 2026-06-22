@@ -614,7 +614,7 @@ mod tests {
         let normalized = config.with_screen_bounds(1920, 1080);
 
         assert_eq!(normalized.window.x, 1680);
-        assert_eq!(normalized.window.y, 820);
+        assert_eq!(normalized.window.y, 840);
     }
 }
 ```
@@ -834,7 +834,7 @@ mod tests {
         let normalized = config.with_screen_bounds(1920, 1080);
 
         assert_eq!(normalized.window.x, 1680);
-        assert_eq!(normalized.window.y, 820);
+        assert_eq!(normalized.window.y, 840);
     }
 }
 ```
