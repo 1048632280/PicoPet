@@ -221,6 +221,7 @@ Write `package.json`:
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0",
+    "jsdom": "^26.0.0",
     "typescript": "^5.8.0",
     "vite": "^7.0.0",
     "vitest": "^3.0.0"
@@ -2172,8 +2173,25 @@ const RESET_ID: &str = "reset_position";
 const EXIT_ID: &str = "exit";
 
 pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
-    let pause = MenuItem::with_id(app, PAUSE_ID, "暂停动画", true, None::<&str>)?;
-    let click_through = MenuItem::with_id(app, CLICK_THROUGH_ID, "开启点击穿透", true, None::<&str>)?;
+    let initial_config = app
+        .state::<AppState>()
+        .config
+        .lock()
+        .map(|config| config.clone())
+        .unwrap_or_default();
+    let pause_label = if initial_config.animation.paused {
+        "继续动画"
+    } else {
+        "暂停动画"
+    };
+    let click_through_label = if initial_config.window.click_through {
+        "关闭点击穿透"
+    } else {
+        "开启点击穿透"
+    };
+
+    let pause = MenuItem::with_id(app, PAUSE_ID, pause_label, true, None::<&str>)?;
+    let click_through = MenuItem::with_id(app, CLICK_THROUGH_ID, click_through_label, true, None::<&str>)?;
     let reset = MenuItem::with_id(app, RESET_ID, "重置位置", true, None::<&str>)?;
     let exit = MenuItem::with_id(app, EXIT_ID, "退出", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&pause, &click_through, &reset, &exit])?;
@@ -2184,14 +2202,16 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         .build(app)?;
 
     let app_handle = app.clone();
+    let pause_item = pause.clone();
+    let click_through_item = click_through.clone();
     app.on_menu_event(move |app, event| {
         let Some(window) = app.get_webview_window("main") else {
             return;
         };
 
         match event.id().as_ref() {
-            PAUSE_ID => toggle_pause(app, &window),
-            CLICK_THROUGH_ID => toggle_click_through(app, &window),
+            PAUSE_ID => toggle_pause(app, &pause_item),
+            CLICK_THROUGH_ID => toggle_click_through(app, &window, &click_through_item),
             RESET_ID => reset_position(app, window),
             EXIT_ID => app_handle.exit(0),
             _ => {}
@@ -2205,7 +2225,7 @@ fn emit_config(app: &AppHandle, config: crate::config::AppConfig) {
     let _ = app.emit("picopet://config", config);
 }
 
-fn toggle_pause(app: &AppHandle, _window: &WebviewWindow) {
+fn toggle_pause(app: &AppHandle, pause_item: &MenuItem) {
     let state = app.state::<AppState>();
     let paused = state
         .config
@@ -2213,11 +2233,16 @@ fn toggle_pause(app: &AppHandle, _window: &WebviewWindow) {
         .map(|config| !config.animation.paused)
         .unwrap_or(false);
     if let Ok(config) = commands::set_animation_paused(paused, state) {
+        let _ = pause_item.set_text(if config.animation.paused {
+            "继续动画"
+        } else {
+            "暂停动画"
+        });
         emit_config(app, config);
     }
 }
 
-fn toggle_click_through(app: &AppHandle, window: &WebviewWindow) {
+fn toggle_click_through(app: &AppHandle, window: &WebviewWindow, click_through_item: &MenuItem) {
     let state = app.state::<AppState>();
     let enabled = state
         .config
@@ -2225,6 +2250,11 @@ fn toggle_click_through(app: &AppHandle, window: &WebviewWindow) {
         .map(|config| !config.window.click_through)
         .unwrap_or(false);
     if let Ok(config) = commands::set_click_through(enabled, window.clone(), state) {
+        let _ = click_through_item.set_text(if config.window.click_through {
+            "关闭点击穿透"
+        } else {
+            "开启点击穿透"
+        });
         emit_config(app, config);
     }
 }
