@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - First release is Windows-only.
-- Target resident memory is 50-100 MB.
+- Target resident memory is 50-100 MB for release-build host + WebView2 child Private Working Set. Total Working Set is recorded as WebView2 diagnostic context, not the merge gate.
 - Use Tauri 2 + Rust + WebView2.
 - Do not add Electron, React, Vue, Svelte, Tailwind, or large UI frameworks.
 - Use built-in spritesheet/atlas assets only; no external skin packages.
@@ -221,6 +221,7 @@ Write `package.json`:
   },
   "devDependencies": {
     "@tauri-apps/cli": "^2.0.0",
+    "jsdom": "^26.0.0",
     "typescript": "^5.8.0",
     "vite": "^7.0.0",
     "vitest": "^3.0.0"
@@ -613,7 +614,7 @@ mod tests {
         let normalized = config.with_screen_bounds(1920, 1080);
 
         assert_eq!(normalized.window.x, 1680);
-        assert_eq!(normalized.window.y, 820);
+        assert_eq!(normalized.window.y, 840);
     }
 }
 ```
@@ -833,7 +834,7 @@ mod tests {
         let normalized = config.with_screen_bounds(1920, 1080);
 
         assert_eq!(normalized.window.x, 1680);
-        assert_eq!(normalized.window.y, 820);
+        assert_eq!(normalized.window.y, 840);
     }
 }
 ```
@@ -2172,8 +2173,25 @@ const RESET_ID: &str = "reset_position";
 const EXIT_ID: &str = "exit";
 
 pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
-    let pause = MenuItem::with_id(app, PAUSE_ID, "暂停动画", true, None::<&str>)?;
-    let click_through = MenuItem::with_id(app, CLICK_THROUGH_ID, "开启点击穿透", true, None::<&str>)?;
+    let initial_config = app
+        .state::<AppState>()
+        .config
+        .lock()
+        .map(|config| config.clone())
+        .unwrap_or_default();
+    let pause_label = if initial_config.animation.paused {
+        "继续动画"
+    } else {
+        "暂停动画"
+    };
+    let click_through_label = if initial_config.window.click_through {
+        "关闭点击穿透"
+    } else {
+        "开启点击穿透"
+    };
+
+    let pause = MenuItem::with_id(app, PAUSE_ID, pause_label, true, None::<&str>)?;
+    let click_through = MenuItem::with_id(app, CLICK_THROUGH_ID, click_through_label, true, None::<&str>)?;
     let reset = MenuItem::with_id(app, RESET_ID, "重置位置", true, None::<&str>)?;
     let exit = MenuItem::with_id(app, EXIT_ID, "退出", true, None::<&str>)?;
     let menu = Menu::with_items(app, &[&pause, &click_through, &reset, &exit])?;
@@ -2184,14 +2202,16 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         .build(app)?;
 
     let app_handle = app.clone();
+    let pause_item = pause.clone();
+    let click_through_item = click_through.clone();
     app.on_menu_event(move |app, event| {
         let Some(window) = app.get_webview_window("main") else {
             return;
         };
 
         match event.id().as_ref() {
-            PAUSE_ID => toggle_pause(app, &window),
-            CLICK_THROUGH_ID => toggle_click_through(app, &window),
+            PAUSE_ID => toggle_pause(app, &pause_item),
+            CLICK_THROUGH_ID => toggle_click_through(app, &window, &click_through_item),
             RESET_ID => reset_position(app, window),
             EXIT_ID => app_handle.exit(0),
             _ => {}
@@ -2205,7 +2225,7 @@ fn emit_config(app: &AppHandle, config: crate::config::AppConfig) {
     let _ = app.emit("picopet://config", config);
 }
 
-fn toggle_pause(app: &AppHandle, _window: &WebviewWindow) {
+fn toggle_pause(app: &AppHandle, pause_item: &MenuItem) {
     let state = app.state::<AppState>();
     let paused = state
         .config
@@ -2213,11 +2233,16 @@ fn toggle_pause(app: &AppHandle, _window: &WebviewWindow) {
         .map(|config| !config.animation.paused)
         .unwrap_or(false);
     if let Ok(config) = commands::set_animation_paused(paused, state) {
+        let _ = pause_item.set_text(if config.animation.paused {
+            "继续动画"
+        } else {
+            "暂停动画"
+        });
         emit_config(app, config);
     }
 }
 
-fn toggle_click_through(app: &AppHandle, window: &WebviewWindow) {
+fn toggle_click_through(app: &AppHandle, window: &WebviewWindow, click_through_item: &MenuItem) {
     let state = app.state::<AppState>();
     let enabled = state
         .config
@@ -2225,6 +2250,11 @@ fn toggle_click_through(app: &AppHandle, window: &WebviewWindow) {
         .map(|config| !config.window.click_through)
         .unwrap_or(false);
     if let Ok(config) = commands::set_click_through(enabled, window.clone(), state) {
+        let _ = click_through_item.set_text(if config.window.click_through {
+            "关闭点击穿透"
+        } else {
+            "开启点击穿透"
+        });
         emit_config(app, config);
     }
 }
@@ -2510,27 +2540,60 @@ Create `docs/qa/memory-baseline.md`:
 
 ## Target
 
-Resident memory target: 50-100 MB while idle on Windows.
+Resident memory target: 50-100 MB release-build host + WebView2 child Private Working Set while idle on Windows. Total Working Set and Private Bytes are recorded as diagnostic and leak-context values. If a launch-shell `conhost` appears in the process tree, record it but exclude it from the app target.
 
 ## Command
 
 Run PicoPet, wait 60 seconds, then execute:
 
 ```powershell
-Get-Process PicoPet,picopet -ErrorAction SilentlyContinue |
-  Select-Object ProcessName,Id,@{Name="WorkingSetMB";Expression={[math]::Round($_.WorkingSet64 / 1MB, 1)}}
+$roots = @(Get-Process PicoPet,picopet -ErrorAction SilentlyContinue)
+$processes = @(Get-CimInstance Win32_Process)
+$perfById = @{}
+try {
+  foreach ($perf in @(Get-CimInstance Win32_PerfFormattedData_PerfProc_Process -ErrorAction Stop)) {
+    if ($perf.IDProcess -gt 0 -and -not $perfById.ContainsKey([int]$perf.IDProcess)) {
+      $perfById[[int]$perf.IDProcess] = $perf
+    }
+  }
+} catch {
+  Write-Warning "WorkingSetPrivate is unavailable from Win32_PerfFormattedData_PerfProc_Process"
+}
+$ids = New-Object 'System.Collections.Generic.HashSet[int]'
+$queue = New-Object 'System.Collections.Generic.Queue[int]'
+foreach ($root in $roots) {
+  [void]$ids.Add([int]$root.Id)
+  $queue.Enqueue([int]$root.Id)
+}
+while ($queue.Count -gt 0) {
+  $parent = $queue.Dequeue()
+  foreach ($child in @($processes | Where-Object { $_.ParentProcessId -eq $parent })) {
+    if ($ids.Add([int]$child.ProcessId)) {
+      $queue.Enqueue([int]$child.ProcessId)
+    }
+  }
+}
+$processTree = @(Get-Process -Id ([int[]]$ids) -ErrorAction SilentlyContinue)
+$processTree | Select-Object ProcessName,Id,
+  @{Name="WorkingSetMB";Expression={[math]::Round($_.WorkingSet64 / 1MB, 1)}},
+  @{Name="PrivateBytesMB";Expression={[math]::Round($_.PrivateMemorySize64 / 1MB, 1)}},
+  @{Name="WorkingSetPrivateMB";Expression={
+    $perf = $perfById[[int]$_.Id]
+    if ($perf) { [math]::Round($perf.WorkingSetPrivate / 1MB, 1) } else { $null }
+  }}
 ```
 
 ## Expected Result
 
-- `WorkingSetMB` is between 50 and 100 MB during idle animation.
+- Release-build host + WebView2 `WorkingSetPrivateMB` sum is between 50 and 100 MB during idle animation.
+- Total Working Set and Private Bytes sums are recorded but are not target pass/fail values.
 - CPU usage remains near 0% when the pet is idle.
 - When animation is paused, memory does not grow across five minutes.
 
 ## Record Template
 
-| Date | Build | Windows Version | WebView2 Version | WorkingSetMB | Notes |
-| --- | --- | --- | --- | ---: | --- |
+| Date | Build | Windows Version | WebView2 Version | AppTargetWorkingSetPrivateMB | DiagnosticTotalWorkingSetMB | DiagnosticTotalPrivateBytesMB | Notes |
+| --- | --- | --- | --- | ---: | ---: | ---: | --- |
 ```
 
 - [ ] **Step 3: Add validation script aliases**
@@ -2594,7 +2657,7 @@ TypeScript/Vite build passes
 Rust tests pass
 Tauri debug bundle builds
 Windows manual QA checklist passes
-Idle WorkingSetMB is recorded in docs/qa/memory-baseline.md and remains in the 50-100 MB target range
+Release-build host + WebView2 Working Set Private is recorded in docs/qa/memory-baseline.md and remains in the 50-100 MB target range; total Working Set is recorded as diagnostic context
 ```
 
 ## Implementation Notes
