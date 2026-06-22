@@ -1,0 +1,27 @@
+[package]
+name = "picopet"
+version = "0.1.0"
+description = "A lightweight Windows desktop pet"
+authors = ["PicoPet contributors"]
+edition = "2021"
+
+[lib]
+name = "picopet_lib"
+crate-type = ["staticlib", "cdylib", "rlib"]
+
+[build-dependencies]
+tauri-build = { version = "2" }
+
+[dependencies]
+tauri = { version = "2" }
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+thiserror = "2"
+raw-window-handle = "0.6"
+windows-sys = { version = "0.60", features = [
+  "Win32_Foundation",
+  "Win32_UI_WindowsAndMessaging"
+] }
+
+[dev-dependencies]
+tempfile = "3"
