@@ -11,7 +11,7 @@
 ## Global Constraints
 
 - First release is Windows-only.
-- Target resident memory is 50-100 MB.
+- Target resident memory is 50-100 MB for release-build host + WebView2 child Private Working Set. Total Working Set is recorded as WebView2 diagnostic context, not the merge gate.
 - Use Tauri 2 + Rust + WebView2.
 - Do not add Electron, React, Vue, Svelte, Tailwind, or large UI frameworks.
 - Use built-in spritesheet/atlas assets only; no external skin packages.
@@ -2540,27 +2540,60 @@ Create `docs/qa/memory-baseline.md`:
 
 ## Target
 
-Resident memory target: 50-100 MB while idle on Windows.
+Resident memory target: 50-100 MB release-build host + WebView2 child Private Working Set while idle on Windows. Total Working Set and Private Bytes are recorded as diagnostic and leak-context values. If a launch-shell `conhost` appears in the process tree, record it but exclude it from the app target.
 
 ## Command
 
 Run PicoPet, wait 60 seconds, then execute:
 
 ```powershell
-Get-Process PicoPet,picopet -ErrorAction SilentlyContinue |
-  Select-Object ProcessName,Id,@{Name="WorkingSetMB";Expression={[math]::Round($_.WorkingSet64 / 1MB, 1)}}
+$roots = @(Get-Process PicoPet,picopet -ErrorAction SilentlyContinue)
+$processes = @(Get-CimInstance Win32_Process)
+$perfById = @{}
+try {
+  foreach ($perf in @(Get-CimInstance Win32_PerfFormattedData_PerfProc_Process -ErrorAction Stop)) {
+    if ($perf.IDProcess -gt 0 -and -not $perfById.ContainsKey([int]$perf.IDProcess)) {
+      $perfById[[int]$perf.IDProcess] = $perf
+    }
+  }
+} catch {
+  Write-Warning "WorkingSetPrivate is unavailable from Win32_PerfFormattedData_PerfProc_Process"
+}
+$ids = New-Object 'System.Collections.Generic.HashSet[int]'
+$queue = New-Object 'System.Collections.Generic.Queue[int]'
+foreach ($root in $roots) {
+  [void]$ids.Add([int]$root.Id)
+  $queue.Enqueue([int]$root.Id)
+}
+while ($queue.Count -gt 0) {
+  $parent = $queue.Dequeue()
+  foreach ($child in @($processes | Where-Object { $_.ParentProcessId -eq $parent })) {
+    if ($ids.Add([int]$child.ProcessId)) {
+      $queue.Enqueue([int]$child.ProcessId)
+    }
+  }
+}
+$processTree = @(Get-Process -Id ([int[]]$ids) -ErrorAction SilentlyContinue)
+$processTree | Select-Object ProcessName,Id,
+  @{Name="WorkingSetMB";Expression={[math]::Round($_.WorkingSet64 / 1MB, 1)}},
+  @{Name="PrivateBytesMB";Expression={[math]::Round($_.PrivateMemorySize64 / 1MB, 1)}},
+  @{Name="WorkingSetPrivateMB";Expression={
+    $perf = $perfById[[int]$_.Id]
+    if ($perf) { [math]::Round($perf.WorkingSetPrivate / 1MB, 1) } else { $null }
+  }}
 ```
 
 ## Expected Result
 
-- `WorkingSetMB` is between 50 and 100 MB during idle animation.
+- Release-build host + WebView2 `WorkingSetPrivateMB` sum is between 50 and 100 MB during idle animation.
+- Total Working Set and Private Bytes sums are recorded but are not target pass/fail values.
 - CPU usage remains near 0% when the pet is idle.
 - When animation is paused, memory does not grow across five minutes.
 
 ## Record Template
 
-| Date | Build | Windows Version | WebView2 Version | WorkingSetMB | Notes |
-| --- | --- | --- | --- | ---: | --- |
+| Date | Build | Windows Version | WebView2 Version | AppTargetWorkingSetPrivateMB | DiagnosticTotalWorkingSetMB | DiagnosticTotalPrivateBytesMB | Notes |
+| --- | --- | --- | --- | ---: | ---: | ---: | --- |
 ```
 
 - [ ] **Step 3: Add validation script aliases**
@@ -2624,7 +2657,7 @@ TypeScript/Vite build passes
 Rust tests pass
 Tauri debug bundle builds
 Windows manual QA checklist passes
-Idle WorkingSetMB is recorded in docs/qa/memory-baseline.md and remains in the 50-100 MB target range
+Release-build host + WebView2 Working Set Private is recorded in docs/qa/memory-baseline.md and remains in the 50-100 MB target range; total Working Set is recorded as diagnostic context
 ```
 
 ## Implementation Notes

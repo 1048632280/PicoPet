@@ -72,3 +72,11 @@ DONE_WITH_CONCERNS
 - Total resident memory with WebView2 included is 356.8 MB, which exceeds the documented 50-100 MB target. The prior host-only baseline under-measured the actual resident footprint.
 - Full visual tray verification was not automated. Code uses Tauri 2.11 `TrayIconBuilder::icon(...)` and `tooltip(...)`, and the debug bundle successfully built with the replacement ICO.
 - `corepack enable` without an install directory still fails in this environment with EPERM writing to `D:\nodejs\pnpm`; the documented workaround uses user-writable Corepack shims.
+
+## Follow-up: Memory Target Measurement Precision
+
+- Updated `docs/qa/memory-baseline.md`, the MVP plan, and the design spec so the 50-100 MB target applies to release-build PicoPet host + WebView2 child Private Working Set, not summed total Working Set.
+- Kept summed total Working Set and Private Bytes as diagnostic/leak-context values because WebView2 shared runtime pages can be counted in multiple processes.
+- Release evidence from `src-tauri/target/release/picopet.exe` after 70 seconds idle: host WorkingSetPrivate 8.1 MB, WebView2 WorkingSetPrivate 80.4 MB, app target WorkingSetPrivate 88.5 MB; diagnostic host + WebView2 total WorkingSet 344.8 MB.
+- One launch-shell `conhost` child was present in the process tree and is now explicitly recorded but excluded from the app target. Including it produced TotalWorkingSet 373.3 MB, TotalPrivateBytes 194.0 MB, TotalWorkingSetPrivate 99.2 MB.
+- Cleanup evidence: RemainingAfterCleanup=0.
