@@ -11,7 +11,10 @@ fn save_updated_config(
         .map_err(|_| "config lock is poisoned".to_string())?;
     update(&mut guard);
     *guard = guard.clone().sanitized();
-    state.store.save(&guard).map_err(|error| error.to_string())?;
+    state
+        .store
+        .save(&guard)
+        .map_err(|error| error.to_string())?;
     Ok(guard.clone())
 }
 
@@ -44,7 +47,9 @@ pub fn reset_window_position(
     window: WebviewWindow,
     state: State<AppState>,
 ) -> Result<AppConfig, String> {
-    let monitor = window.primary_monitor().map_err(|error| error.to_string())?;
+    let monitor = window
+        .primary_monitor()
+        .map_err(|error| error.to_string())?;
     let size = monitor.map(|monitor| *monitor.size());
     let width = size.as_ref().map(|size| size.width as i32).unwrap_or(1920);
     let height = size.as_ref().map(|size| size.height as i32).unwrap_or(1080);
@@ -66,9 +71,12 @@ pub fn reset_window_position(
 #[tauri::command]
 pub fn set_click_through(
     enabled: bool,
-    _window: WebviewWindow,
+    window: WebviewWindow,
     state: State<AppState>,
 ) -> Result<AppConfig, String> {
+    #[cfg(target_os = "windows")]
+    crate::platform::windows::set_click_through(&window, enabled)?;
+
     save_updated_config(&state, |config| {
         config.window.click_through = enabled;
     })
