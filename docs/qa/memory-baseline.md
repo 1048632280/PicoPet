@@ -23,3 +23,4 @@ Get-Process PicoPet,picopet -ErrorAction SilentlyContinue |
 
 | Date | Build | Windows Version | WebView2 Version | WorkingSetMB | Notes |
 | --- | --- | --- | --- | ---: | --- |
+| 2026-06-22 | Debug executable `src-tauri/target/debug/picopet.exe` | Windows 10 Home China 10.0.19045 | 149.0.4022.80 | 38.1 | Measured after 65 seconds idle with the documented `Get-Process PicoPet,picopet` command; app process cleaned up afterward. |
