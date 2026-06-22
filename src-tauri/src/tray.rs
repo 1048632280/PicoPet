@@ -45,15 +45,22 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     let pause_item = pause.clone();
     let click_through_item = click_through.clone();
     app.on_menu_event(move |app, event| {
+        let event_id = event.id();
+        let event_id = event_id.as_ref();
+
+        if !menu_event_requires_main_window(event_id) {
+            app_handle.exit(0);
+            return;
+        }
+
         let Some(window) = app.get_webview_window("main") else {
             return;
         };
 
-        match event.id().as_ref() {
+        match event_id {
             PAUSE_ID => toggle_pause(app, &pause_item),
             CLICK_THROUGH_ID => toggle_click_through(app, &window, &click_through_item),
             RESET_ID => reset_position(app, window),
-            EXIT_ID => app_handle.exit(0),
             _ => {}
         }
     });
@@ -75,6 +82,10 @@ fn click_through_label(enabled: bool) -> &'static str {
     } else {
         "开启点击穿透"
     }
+}
+
+fn menu_event_requires_main_window(id: &str) -> bool {
+    id != EXIT_ID
 }
 
 fn emit_config(app: &AppHandle, config: crate::config::AppConfig) {
@@ -132,5 +143,13 @@ mod tests {
     fn click_through_label_matches_current_window_state() {
         assert_eq!(click_through_label(true), "关闭点击穿透");
         assert_eq!(click_through_label(false), "开启点击穿透");
+    }
+
+    #[test]
+    fn exit_menu_event_does_not_require_main_window() {
+        assert!(!menu_event_requires_main_window(EXIT_ID));
+        assert!(menu_event_requires_main_window(PAUSE_ID));
+        assert!(menu_event_requires_main_window(CLICK_THROUGH_ID));
+        assert!(menu_event_requires_main_window(RESET_ID));
     }
 }
