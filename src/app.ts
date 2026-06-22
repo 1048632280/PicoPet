@@ -1,4 +1,5 @@
 import "./style.css";
+import { listen } from "@tauri-apps/api/event";
 import { getCurrentWindow } from "@tauri-apps/api/window";
 import idleAtlasRaw from "./assets/pet/pico_idle.json";
 import idleImageUrl from "./assets/pet/pico_idle.png?url";
@@ -24,6 +25,11 @@ export async function boot(): Promise<string> {
 
   canvas.style.width = `${atlas.frame_width * config.window.scale}px`;
   canvas.style.height = `${atlas.frame_height * config.window.scale}px`;
+
+  await listen<typeof config>("picopet://config", (event) => {
+    config = event.payload;
+    window.dispatchEvent(new CustomEvent("picopet:config", { detail: config }));
+  });
 
   canvas.addEventListener("pointerdown", async (event) => {
     if (event.button !== 0 || config.window.click_through) {

@@ -5,6 +5,10 @@ const commandMocks = vi.hoisted(() => ({
   saveWindowPosition: vi.fn()
 }));
 
+const eventMocks = vi.hoisted(() => ({
+  listen: vi.fn()
+}));
+
 const defaultConfig = {
   window: {
     x: 1200,
@@ -27,6 +31,10 @@ vi.mock("@tauri-apps/api/window", () => ({
   })
 }));
 
+vi.mock("@tauri-apps/api/event", () => ({
+  listen: eventMocks.listen
+}));
+
 vi.mock("./tauri/commands", () => ({
   getAppConfig: commandMocks.getAppConfig,
   saveWindowPosition: commandMocks.saveWindowPosition
@@ -46,6 +54,7 @@ beforeEach(() => {
   vi.restoreAllMocks();
   commandMocks.getAppConfig.mockResolvedValue(cloneDefaultConfig());
   commandMocks.saveWindowPosition.mockResolvedValue(cloneDefaultConfig());
+  eventMocks.listen.mockResolvedValue(() => undefined);
   vi.stubGlobal("requestAnimationFrame", vi.fn());
 });
 
@@ -103,5 +112,32 @@ describe("boot", () => {
     expect(context.clearRect).toHaveBeenCalledWith(0, 0, 128, 128);
     expect(context.drawImage).toHaveBeenCalledTimes(1);
     expect(context.drawImage).toHaveBeenCalledWith(expect.any(Object), 0, 0, 128, 128, 0, 0, 128, 128);
+  });
+
+  it("applies tray config events to runtime interactions", async () => {
+    mockCanvasContext();
+    document.body.innerHTML = '<canvas id="pet-canvas"></canvas>';
+    const { boot } = await import("./app");
+
+    await boot();
+    const listener = eventMocks.listen.mock.calls.find(([eventName]) => eventName === "picopet://config")?.[1];
+    expect(listener).toBeTypeOf("function");
+
+    listener?.({
+      event: "picopet://config",
+      id: 1,
+      payload: {
+        ...cloneDefaultConfig(),
+        window: {
+          ...defaultConfig.window,
+          click_through: true
+        }
+      }
+    });
+    document.querySelector<HTMLCanvasElement>("#pet-canvas")?.dispatchEvent(
+      new MouseEvent("pointerdown", { button: 0 })
+    );
+
+    expect(commandMocks.saveWindowPosition).not.toHaveBeenCalled();
   });
 });
