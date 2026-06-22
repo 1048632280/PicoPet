@@ -44,17 +44,32 @@ impl AppConfig {
         self
     }
 
-    pub fn with_screen_bounds(mut self, screen_width: i32, screen_height: i32) -> Self {
-        let max_x = screen_width - PET_WINDOW_WIDTH;
-        let max_y = screen_height - PET_WINDOW_HEIGHT;
+    pub fn with_screen_bounds(self, screen_width: i32, screen_height: i32) -> Self {
+        self.with_window_bounds(
+            screen_width,
+            screen_height,
+            PET_WINDOW_WIDTH,
+            PET_WINDOW_HEIGHT,
+        )
+    }
+
+    pub fn with_window_bounds(
+        mut self,
+        screen_width: i32,
+        screen_height: i32,
+        window_width: i32,
+        window_height: i32,
+    ) -> Self {
+        let max_x = screen_width - window_width;
+        let max_y = screen_height - window_height;
         let is_visible = self.window.x >= -SCREEN_MARGIN
             && self.window.y >= -SCREEN_MARGIN
             && self.window.x <= max_x + SCREEN_MARGIN
             && self.window.y <= max_y + SCREEN_MARGIN;
 
         if !is_visible {
-            self.window.x = (screen_width - PET_WINDOW_WIDTH - SCREEN_MARGIN).max(0);
-            self.window.y = (screen_height - PET_WINDOW_HEIGHT - SCREEN_MARGIN).max(0);
+            self.window.x = (screen_width - window_width - SCREEN_MARGIN).max(0);
+            self.window.y = (screen_height - window_height - SCREEN_MARGIN).max(0);
         }
 
         self

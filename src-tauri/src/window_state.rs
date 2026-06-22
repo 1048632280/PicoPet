@@ -15,10 +15,11 @@ fn derive_startup_window_state(
     screen_width: i32,
     screen_height: i32,
 ) -> StartupWindowState {
-    let config = config
-        .clone()
-        .with_screen_bounds(screen_width, screen_height);
     let side = (160.0 * config.window.scale).round() as u32;
+    let config =
+        config
+            .clone()
+            .with_window_bounds(screen_width, screen_height, side as i32, side as i32);
 
     StartupWindowState {
         side,
@@ -78,9 +79,25 @@ mod tests {
         let state = derive_startup_window_state(&config, 1920, 1080);
 
         assert_eq!(state.side, 240);
-        assert_eq!(state.x, 1680);
-        assert_eq!(state.y, 840);
+        assert_eq!(state.x, 1600);
+        assert_eq!(state.y, 760);
         assert!(state.always_on_top);
         assert!(!state.click_through);
+    }
+
+    #[test]
+    fn startup_window_state_keeps_scaled_window_inside_screen() {
+        let mut config = AppConfig::default();
+        config.window.x = 9000;
+        config.window.y = 9000;
+        config.window.scale = 2.0;
+
+        let state = derive_startup_window_state(&config, 1920, 1080);
+
+        assert_eq!(state.side, 320);
+        assert_eq!(state.x, 1520);
+        assert_eq!(state.y, 680);
+        assert!(state.x + state.side as i32 <= 1920);
+        assert!(state.y + state.side as i32 <= 1080);
     }
 }
