@@ -1,5 +1,16 @@
-import { describe, expect, it } from "vitest";
+import { beforeEach, describe, expect, it, vi } from "vitest";
 import { boot } from "./app";
+
+beforeEach(() => {
+  vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue({
+    clearRect: vi.fn(),
+    drawImage: vi.fn(),
+    beginPath: vi.fn(),
+    arc: vi.fn(),
+    fill: vi.fn(),
+    fillStyle: ""
+  } as unknown as CanvasRenderingContext2D);
+});
 
 describe("boot", () => {
   it("marks the pet canvas as ready", () => {

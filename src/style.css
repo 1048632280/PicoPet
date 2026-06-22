@@ -22,5 +22,11 @@ body {
 #pet-canvas {
   width: 128px;
   height: 128px;
+  display: block;
   image-rendering: auto;
+  cursor: grab;
+}
+
+#pet-canvas:active {
+  cursor: grabbing;
 }
