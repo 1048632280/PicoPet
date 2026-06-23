@@ -9,6 +9,11 @@ const eventMocks = vi.hoisted(() => ({
   listen: vi.fn()
 }));
 
+const frameMocks = vi.hoisted(() => ({
+  requestAnimationFrame: vi.fn(() => 1),
+  cancelAnimationFrame: vi.fn()
+}));
+
 const defaultConfig = {
   window: {
     x: 1200,
@@ -55,7 +60,10 @@ beforeEach(() => {
   commandMocks.getAppConfig.mockResolvedValue(cloneDefaultConfig());
   commandMocks.saveWindowPosition.mockResolvedValue(cloneDefaultConfig());
   eventMocks.listen.mockResolvedValue(() => undefined);
-  vi.stubGlobal("requestAnimationFrame", vi.fn());
+  vi.stubGlobal("requestAnimationFrame", frameMocks.requestAnimationFrame);
+  vi.stubGlobal("cancelAnimationFrame", frameMocks.cancelAnimationFrame);
+  frameMocks.requestAnimationFrame.mockClear();
+  frameMocks.cancelAnimationFrame.mockClear();
 });
 
 function mockCanvasContext(): ContextMock {
@@ -112,6 +120,7 @@ describe("boot", () => {
     expect(context.clearRect).toHaveBeenCalledWith(0, 0, 128, 128);
     expect(context.drawImage).toHaveBeenCalledTimes(1);
     expect(context.drawImage).toHaveBeenCalledWith(expect.any(Object), 0, 0, 128, 128, 0, 0, 128, 128);
+    expect(frameMocks.requestAnimationFrame).not.toHaveBeenCalled();
   });
 
   it("applies tray config events to runtime interactions", async () => {
@@ -139,5 +148,29 @@ describe("boot", () => {
     );
 
     expect(commandMocks.saveWindowPosition).not.toHaveBeenCalled();
+  });
+
+  it("applies tray config scale changes to the canvas size", async () => {
+    mockCanvasContext();
+    document.body.innerHTML = '<canvas id="pet-canvas"></canvas>';
+    const { boot } = await import("./app");
+
+    await boot();
+    const listener = eventMocks.listen.mock.calls.find(([eventName]) => eventName === "picopet://config")?.[1];
+    expect(listener).toBeTypeOf("function");
+
+    listener?.({
+      event: "picopet://config",
+      id: 1,
+      payload: {
+        ...cloneDefaultConfig(),
+        window: {
+          ...defaultConfig.window,
+          scale: 1.5
+        }
+      }
+    });
+
+    expect(document.querySelector<HTMLCanvasElement>("#pet-canvas")?.style.width).toBe("192px");
   });
 });

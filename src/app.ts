@@ -4,6 +4,7 @@ import { getCurrentWindow } from "@tauri-apps/api/window";
 import idleAtlasRaw from "./assets/pet/pico_idle.json";
 import idleImageUrl from "./assets/pet/pico_idle.png?url";
 import { frameIndexAt, shouldRenderFrame } from "./pet/animationClock";
+import { createAnimationLoop } from "./pet/animationLoop";
 import { normalizeAtlasManifest } from "./pet/atlas";
 import { PetRenderer } from "./pet/renderer";
 import { getAppConfig, saveWindowPosition } from "./tauri/commands";
@@ -22,9 +23,19 @@ export async function boot(): Promise<string> {
   let startedAt = performance.now();
   let previousFrameAt = 0;
   let paused = config.animation.paused;
+  let imageReady = false;
 
-  canvas.style.width = `${atlas.frame_width * config.window.scale}px`;
-  canvas.style.height = `${atlas.frame_height * config.window.scale}px`;
+  const applyCanvasScale = () => {
+    canvas.style.width = `${atlas.frame_width * config.window.scale}px`;
+    canvas.style.height = `${atlas.frame_height * config.window.scale}px`;
+  };
+  const isAnimationActive = () => imageReady && !paused && !document.hidden;
+  const loop = createAnimationLoop({
+    isActive: isAnimationActive,
+    tick
+  });
+
+  applyCanvasScale();
 
   await listen<typeof config>("picopet://config", (event) => {
     config = event.payload;
@@ -42,11 +53,15 @@ export async function boot(): Promise<string> {
 
   const image = new Image();
   image.onload = () => {
+    imageReady = true;
     renderer.setImage(image);
     renderer.renderFrame(0);
-    requestAnimationFrame(tick);
+    loop.sync();
   };
-  image.onerror = () => renderer.renderFallback();
+  image.onerror = () => {
+    renderer.renderFallback();
+    loop.stop();
+  };
   image.src = idleImageUrl;
 
   function tick(now: number) {
@@ -54,13 +69,14 @@ export async function boot(): Promise<string> {
       previousFrameAt = now;
       renderer.renderFrame(frameIndexAt(now - startedAt, config.animation.idle_fps, atlas.frames));
     }
-    requestAnimationFrame(tick);
   }
 
   window.addEventListener("picopet:config", (event) => {
     const custom = event as CustomEvent<typeof config>;
     config = custom.detail;
     paused = config.animation.paused;
+    applyCanvasScale();
+    loop.sync();
   });
 
   document.addEventListener("visibilitychange", () => {
@@ -68,6 +84,7 @@ export async function boot(): Promise<string> {
       startedAt = performance.now();
       previousFrameAt = 0;
     }
+    loop.sync();
   });
 
   canvas.dataset.ready = "true";
