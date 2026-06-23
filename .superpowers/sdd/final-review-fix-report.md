@@ -4,79 +4,61 @@
 
 DONE_WITH_CONCERNS
 
-## Changed Files
+## Root Cause Verification
 
-- `src-tauri/src/config.rs`
-  - Added `scaled_window_side()` and `placed_at_bottom_right(...)`.
-  - Added focused reset-placement tests proving explicit reset is separate from offscreen repair and uses current scale.
+1. Destroyed-window position persistence
+   - Verified `src-tauri/src/lib.rs` matched `WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed`, then called `window.app_handle().get_webview_window("main")` before persisting.
+   - Root cause: the destroyed event already supplies the window handle, but the implementation discarded it and performed a manager lookup after teardown may have started. If the lookup returns `None`, persistence is skipped silently.
+   - Fix: added `should_persist_main_window_position(...)` for event gating and changed the hook to call `commands::persist_main_window_position_from_event_window(window)` using the event-provided `tauri::Window`.
+
+2. Scale geometry clamps against primary monitor only
+   - Verified `src-tauri/src/commands.rs` `apply_window_geometry` read only `primary_monitor()` and normalized with `with_strict_window_bounds(width, height, side, side)`.
+   - Root cause: strict bounds use a single origin `(0, 0)` screen, so a valid saved position on a secondary monitor, including positive-x or left-side negative-x layouts, can be clamped back into the primary monitor during tray scale changes.
+   - Fix: `apply_window_geometry` now gathers `available_monitors()`, orders them with `screens_with_primary_first(...)`, and derives visible geometry through `normalize_position_for_screens(...)`. Valid positions on any monitor are preserved; truly offscreen positions fall back to primary bottom-right through the shared helper.
+
+## RED Test Evidence
+
+- Command: `cargo test --manifest-path src-tauri\Cargo.toml commands::tests::scaled_geometry_preserves_position_on_secondary_monitor`
+  - Expected failure: test referenced the intended pure helper boundary before implementation.
+  - Actual RED: compile failed with `cannot find function derive_window_geometry_config in this scope`.
+
+- Command: `cargo test --manifest-path src-tauri\Cargo.toml destroyed_main_window_event_requires_position_persistence`
+  - Expected failure: test referenced the intended event-gating helper before implementation.
+  - Actual RED: compile failed with `cannot find function should_persist_main_window_position in this scope`.
+
+Note: a unit test cannot safely construct and tear down a real Tauri destroyed-window event with live runtime state. The closest meaningful coverage is the pure event gate plus compiler-verified production use of the event-provided `tauri::Window` handle.
+
+## GREEN Verification
+
+- Command: `cargo test --manifest-path src-tauri\Cargo.toml commands::tests::scaled_geometry_preserves_position_on_secondary_monitor`
+  - Passed: 1 test, 0 failures.
+
+- Command: `cargo test --manifest-path src-tauri\Cargo.toml destroyed_main_window_event_requires_position_persistence`
+  - Passed: 1 test, 0 failures.
+
+- Command: `cargo test --manifest-path src-tauri\Cargo.toml window_position`
+  - Passed: 6 tests, 0 failures.
+
+- Command: `cargo test --manifest-path src-tauri\Cargo.toml commands`
+  - Passed: 2 tests, 0 failures.
+
+- Command: `cargo test --manifest-path src-tauri\Cargo.toml`
+  - Passed: 32 lib tests plus 1 integration test, 0 failures.
+
+- Command: `pnpm check`
+  - Passed: Vitest 7 files / 20 tests, TypeScript/Vite build, and Rust tests.
+
+## Commit SHA
+
+b44e22ac672f7c6635ba25abe55ece5ef1fe716e
+
+## Files Changed
+
+- `src-tauri/src/lib.rs`
 - `src-tauri/src/commands.rs`
-  - Updated `reset_window_position` to read current config, preserve scale and other fields, compute primary-screen bottom-right, set scale-derived window size, and persist only x/y changes.
-- `src-tauri/src/window_state.rs`
-  - Reused the shared scale-derived window-side helper for startup sizing.
-- `src-tauri/src/tray.rs`
-  - Added `PicoPet` tooltip and explicit tray icon wiring from Tauri's default window icon.
-- `src-tauri/icons/icon.ico`
-  - Replaced the 70-byte placeholder with a generated PicoPet ICO containing 16x16, 32x32, and 256x256 32bpp entries.
-- `src-tauri/tauri.conf.json`
-  - Changed identifier from `com.picopet.app` to `com.picopet.desktop`.
-  - Added explicit bundle icon `icons/icon.ico`.
-- `docs/qa/memory-baseline.md`
-  - Updated baseline procedure to measure PicoPet host plus `msedgewebview2` child processes and make total working set the target metric.
-  - Recorded a new 65-second idle measurement.
-- `docs/qa/windows-mvp-checklist.md`
-  - Documented the local Corepack shim bootstrap needed when plain `pnpm` is unavailable.
-
-## TDD Evidence
-
-- RED:
-  - Added `explicit_bottom_right_reset_moves_visible_default_position`.
-  - Added `explicit_bottom_right_reset_uses_scaled_window_size_and_preserves_fields`.
-  - Ran `cargo test --manifest-path src-tauri/Cargo.toml explicit_bottom_right_reset -- --nocapture`.
-  - Failure was expected: `no method named placed_at_bottom_right found for struct config::AppConfig`.
-- GREEN:
-  - Implemented `AppConfig::placed_at_bottom_right(...)` and `scaled_window_side()`.
-  - Updated `reset_window_position` to use current sanitized config instead of `AppConfig::default().with_screen_bounds(...)`.
-  - Reran the targeted command; both new tests passed.
-
-## Verification
-
-- `cargo fmt --manifest-path src-tauri/Cargo.toml --check`
-  - Passed.
-- `cargo test --manifest-path src-tauri/Cargo.toml`
-  - Passed: 14 Rust tests.
-- `corepack pnpm build`
-  - Passed: TypeScript check and Vite production build.
-- `corepack pnpm exec tauri build --debug`
-  - Passed: debug executable and NSIS bundle built.
-  - The previous `.app` identifier warning was not emitted.
-- `pnpm check`
-  - Passed after creating user-writable Corepack shims with `corepack enable --install-directory "$env:LOCALAPPDATA\CorepackShims"` and prepending that directory to `PATH`.
-  - Vitest: 6 files passed, 12 tests passed.
-  - Frontend build passed.
-  - Rust tests passed: 14 tests.
-
-## Memory Baseline
-
-- Build measured: `src-tauri/target/debug/picopet.exe`.
-- Launch method: started debug exe, waited 65 seconds idle, measured host + WebView2 child processes, then cleaned up the process tree.
-- Windows: Microsoft Windows 10 家庭中文版 10.0.19045.
-- WebView2: 149.0.4022.80.
-- HostWorkingSetMB: 37.9.
-- WebView2ChildrenMB: 318.8.
-- TotalWorkingSetMB: 356.8.
-- ProcessCount: 7.
-- Cleanup: `RemainingPicoPet=0`.
+- `docs/release/windows-release-process.md`
 
 ## Concerns
 
-- Total resident memory with WebView2 included is 356.8 MB, which exceeds the documented 50-100 MB target. The prior host-only baseline under-measured the actual resident footprint.
-- Full visual tray verification was not automated. Code uses Tauri 2.11 `TrayIconBuilder::icon(...)` and `tooltip(...)`, and the debug bundle successfully built with the replacement ICO.
-- `corepack enable` without an install directory still fails in this environment with EPERM writing to `D:\nodejs\pnpm`; the documented workaround uses user-writable Corepack shims.
-
-## Follow-up: Memory Target Measurement Precision
-
-- Updated `docs/qa/memory-baseline.md`, the MVP plan, and the design spec so the 50-100 MB target applies to release-build PicoPet host + WebView2 child Private Working Set, not summed total Working Set.
-- Kept summed total Working Set and Private Bytes as diagnostic/leak-context values because WebView2 shared runtime pages can be counted in multiple processes.
-- Release evidence from `src-tauri/target/release/picopet.exe` after 70 seconds idle: host WorkingSetPrivate 8.1 MB, WebView2 WorkingSetPrivate 80.4 MB, app target WorkingSetPrivate 88.5 MB; diagnostic host + WebView2 total WorkingSet 344.8 MB.
-- One launch-shell `conhost` child was present in the process tree and is now explicitly recorded but excluded from the app target. Including it produced TotalWorkingSet 373.3 MB, TotalPrivateBytes 194.0 MB, TotalWorkingSetPrivate 99.2 MB.
-- Cleanup evidence: RemainingAfterCleanup=0.
+- None for the code fix or verification.
+- The report was written after the commit so it could include the final commit SHA; it is not part of the fix commit.
