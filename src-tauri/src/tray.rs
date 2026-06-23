@@ -11,11 +11,15 @@ const RESET_ID: &str = "reset_position";
 const SCALE_UP_ID: &str = "scale_up";
 const SCALE_DOWN_ID: &str = "scale_down";
 const SCALE_RESET_ID: &str = "scale_reset";
+const LAUNCH_ON_LOGIN_ID: &str = "toggle_launch_on_login";
+const OPEN_CONFIG_ID: &str = "open_config_dir";
+const ABOUT_ID: &str = "about";
 const EXIT_ID: &str = "exit";
 
 #[derive(Debug, PartialEq, Eq)]
 enum MenuEventAction {
     PersistWindowPositionAndExit,
+    UseApp,
     UseMainWindow,
 }
 
@@ -45,6 +49,21 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     let scale_up = MenuItem::with_id(app, SCALE_UP_ID, "放大", true, None::<&str>)?;
     let scale_down = MenuItem::with_id(app, SCALE_DOWN_ID, "缩小", true, None::<&str>)?;
     let scale_reset = MenuItem::with_id(app, SCALE_RESET_ID, "重置大小", true, None::<&str>)?;
+    let launch_on_login = MenuItem::with_id(
+        app,
+        LAUNCH_ON_LOGIN_ID,
+        launch_on_login_label(initial_config.startup.launch_on_login),
+        true,
+        None::<&str>,
+    )?;
+    let open_config = MenuItem::with_id(app, OPEN_CONFIG_ID, "打开配置目录", true, None::<&str>)?;
+    let about = MenuItem::with_id(
+        app,
+        ABOUT_ID,
+        format!("关于 PicoPet {}", app.package_info().version),
+        false,
+        None::<&str>,
+    )?;
     let exit = MenuItem::with_id(app, EXIT_ID, "退出", true, None::<&str>)?;
     let menu = Menu::with_items(
         app,
@@ -55,6 +74,9 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
             &scale_up,
             &scale_down,
             &scale_reset,
+            &launch_on_login,
+            &open_config,
+            &about,
             &exit,
         ],
     )?;
@@ -71,16 +93,28 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     let app_handle = app.clone();
     let pause_item = pause.clone();
     let click_through_item = click_through.clone();
+    let launch_on_login_item = launch_on_login.clone();
     app.on_menu_event(move |app, event| {
         let event_id = event.id();
         let event_id = event_id.as_ref();
 
-        if menu_event_action(event_id) == MenuEventAction::PersistWindowPositionAndExit {
-            if let Some(window) = app.get_webview_window("main") {
-                save_window_position_before_exit(app, window);
+        match menu_event_action(event_id) {
+            MenuEventAction::PersistWindowPositionAndExit => {
+                if let Some(window) = app.get_webview_window("main") {
+                    save_window_position_before_exit(app, window);
+                }
+                app_handle.exit(0);
+                return;
             }
-            app_handle.exit(0);
-            return;
+            MenuEventAction::UseApp => {
+                match event_id {
+                    LAUNCH_ON_LOGIN_ID => toggle_launch_on_login(app, &launch_on_login_item),
+                    OPEN_CONFIG_ID => open_config_dir(app),
+                    _ => {}
+                }
+                return;
+            }
+            MenuEventAction::UseMainWindow => {}
         }
 
         let Some(window) = app.get_webview_window("main") else {
@@ -117,11 +151,19 @@ fn click_through_label(enabled: bool) -> &'static str {
     }
 }
 
-fn menu_event_action(id: &str) -> MenuEventAction {
-    if id == EXIT_ID {
-        MenuEventAction::PersistWindowPositionAndExit
+fn launch_on_login_label(enabled: bool) -> &'static str {
+    if enabled {
+        "关闭开机自启动"
     } else {
-        MenuEventAction::UseMainWindow
+        "开启开机自启动"
+    }
+}
+
+fn menu_event_action(id: &str) -> MenuEventAction {
+    match id {
+        EXIT_ID => MenuEventAction::PersistWindowPositionAndExit,
+        LAUNCH_ON_LOGIN_ID | OPEN_CONFIG_ID | ABOUT_ID => MenuEventAction::UseApp,
+        _ => MenuEventAction::UseMainWindow,
     }
 }
 
@@ -181,6 +223,34 @@ fn toggle_click_through(
     }
 }
 
+fn toggle_launch_on_login(app: &AppHandle, launch_on_login_item: &MenuItem<Wry>) {
+    let state = app.state::<AppState>();
+    let enabled = state
+        .config
+        .lock()
+        .map(|config| !config.startup.launch_on_login)
+        .unwrap_or(false);
+    if let Ok(config) = commands::set_launch_on_login(enabled, app.clone(), state) {
+        let _ =
+            launch_on_login_item.set_text(launch_on_login_label(config.startup.launch_on_login));
+        emit_config(app, config.clone());
+        crate::logging::append_log(
+            app,
+            &format!(
+                "托盘开机自启动菜单已更新: {}",
+                config.startup.launch_on_login
+            ),
+        );
+    }
+}
+
+fn open_config_dir(app: &AppHandle) {
+    if let Ok(path) = app.path().app_config_dir() {
+        let _ = std::process::Command::new("explorer").arg(path).spawn();
+        crate::logging::append_log(app, "打开配置目录");
+    }
+}
+
 fn reset_position(app: &AppHandle, window: WebviewWindow) {
     let state = app.state::<AppState>();
     if let Ok(config) = commands::reset_window_position(window, state) {
@@ -217,6 +287,12 @@ mod tests {
     }
 
     #[test]
+    fn launch_on_login_label_matches_current_startup_state() {
+        assert_eq!(launch_on_login_label(true), "关闭开机自启动");
+        assert_eq!(launch_on_login_label(false), "开启开机自启动");
+    }
+
+    #[test]
     fn exit_menu_event_persists_window_position_before_exit() {
         assert_eq!(
             menu_event_action(EXIT_ID),
@@ -232,6 +308,12 @@ mod tests {
             MenuEventAction::UseMainWindow
         );
         assert_eq!(menu_event_action(RESET_ID), MenuEventAction::UseMainWindow);
+        assert_eq!(
+            menu_event_action(LAUNCH_ON_LOGIN_ID),
+            MenuEventAction::UseApp
+        );
+        assert_eq!(menu_event_action(OPEN_CONFIG_ID), MenuEventAction::UseApp);
+        assert_eq!(menu_event_action(ABOUT_ID), MenuEventAction::UseApp);
     }
 
     #[test]

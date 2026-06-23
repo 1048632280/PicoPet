@@ -153,6 +153,26 @@ pub fn set_click_through(
     })
 }
 
+#[tauri::command]
+pub fn set_launch_on_login(
+    enabled: bool,
+    app: tauri::AppHandle,
+    state: State<AppState>,
+) -> Result<AppConfig, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let exe_path = std::env::current_exe().map_err(|error| error.to_string())?;
+        crate::platform::windows_autostart::set_launch_on_login("PicoPet", &exe_path, enabled)
+            .map_err(|error| error.to_string())?;
+    }
+
+    crate::logging::append_log(&app, &format!("开机自启动设置为: {enabled}"));
+
+    save_updated_config(&state, |config| {
+        config.startup.launch_on_login = enabled;
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

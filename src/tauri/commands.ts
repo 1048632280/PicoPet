@@ -13,6 +13,15 @@ export type AppConfig = {
     idle_fps: number;
     interactive_fps: number;
   };
+  startup: {
+    launch_on_login: boolean;
+  };
+};
+
+export type DiagnosticsInfo = {
+  version: string;
+  config_dir: string;
+  log_file: string;
 };
 
 export function getAppConfig(): Promise<AppConfig> {
@@ -40,4 +49,12 @@ export function resetWindowPosition(): Promise<AppConfig> {
 
 export function setWindowScale(scale: number): Promise<AppConfig> {
   return invoke<AppConfig>("set_window_scale", { scale });
+}
+
+export function getDiagnosticsInfo(): Promise<DiagnosticsInfo> {
+  return invoke<DiagnosticsInfo>("get_diagnostics_info");
+}
+
+export function setLaunchOnLogin(enabled: boolean): Promise<AppConfig> {
+  return invoke<AppConfig>("set_launch_on_login", { enabled });
 }

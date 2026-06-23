@@ -31,4 +31,22 @@ describe("command wrappers", () => {
 
     expect(invoke).toHaveBeenCalledWith("set_window_scale", { scale: 1.25 });
   });
+
+  it("calls set_launch_on_login with the expected payload", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const { setLaunchOnLogin } = await import("./commands");
+
+    await setLaunchOnLogin(true);
+
+    expect(invoke).toHaveBeenCalledWith("set_launch_on_login", { enabled: true });
+  });
+
+  it("calls get_diagnostics_info without payload", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const { getDiagnosticsInfo } = await import("./commands");
+
+    await getDiagnosticsInfo();
+
+    expect(invoke).toHaveBeenCalledWith("get_diagnostics_info");
+  });
 });

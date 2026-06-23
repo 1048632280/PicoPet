@@ -1,5 +1,7 @@
 mod commands;
 pub mod config;
+mod diagnostics;
+mod logging;
 mod platform;
 mod state;
 mod tray;
@@ -8,9 +10,10 @@ mod window_state;
 
 use commands::{
     get_app_config, reset_window_position, save_window_position, set_animation_paused,
-    set_click_through, set_window_scale,
+    set_click_through, set_launch_on_login, set_window_scale,
 };
 use config::ConfigStore;
+use diagnostics::get_diagnostics_info;
 use state::AppState;
 use tauri::{Manager, WindowEvent};
 
@@ -37,6 +40,7 @@ pub fn run() {
             let store = ConfigStore::new(config_dir.join("config.json"));
             let config = store.load_or_repair()?;
             app.manage(AppState::new(config.clone(), store));
+            logging::append_log(app.handle(), "PicoPet 启动");
             if let Some(window) = app.get_webview_window("main") {
                 if let Err(error) = window_state::apply_startup_window_state(&window, &config) {
                     eprintln!("窗口状态应用失败: {error}");
@@ -53,7 +57,9 @@ pub fn run() {
             save_window_position,
             reset_window_position,
             set_window_scale,
-            set_click_through
+            set_click_through,
+            set_launch_on_login,
+            get_diagnostics_info
         ])
         .run(tauri::generate_context!())
         .expect("failed to run PicoPet");

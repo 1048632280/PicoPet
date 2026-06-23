@@ -19,6 +19,7 @@ const SCREEN_MARGIN: i32 = 80;
 pub struct AppConfig {
     pub window: WindowConfig,
     pub animation: AnimationConfig,
+    pub startup: StartupConfig,
 }
 
 impl Default for AppConfig {
@@ -26,6 +27,7 @@ impl Default for AppConfig {
         Self {
             window: WindowConfig::default(),
             animation: AnimationConfig::default(),
+            startup: StartupConfig::default(),
         }
     }
 }
@@ -154,6 +156,20 @@ impl Default for AnimationConfig {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct StartupConfig {
+    pub launch_on_login: bool,
+}
+
+impl Default for StartupConfig {
+    fn default() -> Self {
+        Self {
+            launch_on_login: false,
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum ConfigError {
     #[error("failed to read or write config: {0}")]
@@ -214,6 +230,26 @@ mod tests {
         assert!(!config.animation.paused);
         assert_eq!(config.animation.idle_fps, 12);
         assert_eq!(config.animation.interactive_fps, 30);
+    }
+
+    #[test]
+    fn default_config_disables_launch_on_login() {
+        let config = AppConfig::default();
+
+        assert!(!config.startup.launch_on_login);
+    }
+
+    #[test]
+    fn repaired_config_contains_startup_section() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("config.json");
+        let store = ConfigStore::new(path.clone());
+
+        let _ = store.load_or_repair().unwrap();
+        let repaired = std::fs::read_to_string(path).unwrap();
+
+        assert!(repaired.contains("\"startup\""));
+        assert!(repaired.contains("\"launch_on_login\": false"));
     }
 
     #[test]
