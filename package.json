@@ -8,6 +8,9 @@
     "build": "tsc --noEmit && vite build",
     "test": "vitest",
     "check": "pnpm test -- --run && pnpm build && cargo test --manifest-path src-tauri/Cargo.toml",
+    "check:windows": "powershell -ExecutionPolicy Bypass -File scripts/windows-release-smoke.ps1",
+    "check:windows:release": "powershell -ExecutionPolicy Bypass -File scripts/windows-release-smoke.ps1 -Release",
+    "memory:windows": "powershell -ExecutionPolicy Bypass -File scripts/windows-memory-baseline.ps1",
     "tauri": "tauri"
   },
   "dependencies": {

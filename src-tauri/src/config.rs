@@ -7,6 +7,7 @@ const DEFAULT_Y: i32 = 680;
 const DEFAULT_SCALE: f64 = 1.0;
 const MIN_SCALE: f64 = 0.5;
 const MAX_SCALE: f64 = 2.0;
+pub const SCALE_STEP: f64 = 0.25;
 const DEFAULT_IDLE_FPS: u16 = 12;
 const DEFAULT_INTERACTIVE_FPS: u16 = 30;
 const PET_WINDOW_WIDTH: i32 = 160;
@@ -48,6 +49,16 @@ impl AppConfig {
         (PET_WINDOW_WIDTH as f64 * self.window.scale.clamp(MIN_SCALE, MAX_SCALE)).round() as i32
     }
 
+    pub fn with_scale(mut self, scale: f64) -> Self {
+        self.window.scale = scale;
+        self.sanitized()
+    }
+
+    pub fn with_scale_delta(self, delta: f64) -> Self {
+        let next = ((self.window.scale + delta) * 100.0).round() / 100.0;
+        self.with_scale(next)
+    }
+
     pub fn placed_at_bottom_right(mut self, screen_width: i32, screen_height: i32) -> Self {
         let side = self.scaled_window_side();
         self.window.x = (screen_width - side - SCREEN_MARGIN).max(0);
@@ -82,6 +93,22 @@ impl AppConfig {
             self.window.x = (screen_width - window_width - SCREEN_MARGIN).max(0);
             self.window.y = (screen_height - window_height - SCREEN_MARGIN).max(0);
         }
+
+        self
+    }
+
+    pub fn with_strict_window_bounds(
+        mut self,
+        screen_width: i32,
+        screen_height: i32,
+        window_width: i32,
+        window_height: i32,
+    ) -> Self {
+        let max_x = (screen_width - window_width).max(0);
+        let max_y = (screen_height - window_height).max(0);
+
+        self.window.x = self.window.x.clamp(0, max_x);
+        self.window.y = self.window.y.clamp(0, max_y);
 
         self
     }
@@ -201,6 +228,43 @@ mod tests {
         assert_eq!(sanitized.window.scale, 2.0);
         assert_eq!(sanitized.animation.idle_fps, 12);
         assert_eq!(sanitized.animation.interactive_fps, 30);
+    }
+
+    #[test]
+    fn with_scale_clamps_to_supported_range() {
+        let config = AppConfig::default().with_scale(9.0);
+
+        assert_eq!(config.window.scale, 2.0);
+
+        let config = AppConfig::default().with_scale(0.1);
+
+        assert_eq!(config.window.scale, 0.5);
+    }
+
+    #[test]
+    fn with_scale_delta_moves_by_fixed_step() {
+        let mut config = AppConfig::default();
+        config.window.scale = 1.0;
+
+        let larger = config.clone().with_scale_delta(0.25);
+        let smaller = config.with_scale_delta(-0.25);
+
+        assert_eq!(larger.window.scale, 1.25);
+        assert_eq!(smaller.window.scale, 0.75);
+    }
+
+    #[test]
+    fn strict_window_bounds_clamps_scaled_position_inside_screen() {
+        let mut config = AppConfig::default();
+        config.window.x = 1660;
+        config.window.y = 20;
+        config.window.scale = 2.0;
+
+        let side = config.scaled_window_side();
+        let normalized = config.with_strict_window_bounds(1920, 1080, side, side);
+
+        assert_eq!(normalized.window.x, 1600);
+        assert_eq!(normalized.window.y, 20);
     }
 
     #[test]

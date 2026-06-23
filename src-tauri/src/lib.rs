@@ -7,7 +7,7 @@ mod window_state;
 
 use commands::{
     get_app_config, reset_window_position, save_window_position, set_animation_paused,
-    set_click_through,
+    set_click_through, set_window_scale,
 };
 use config::ConfigStore;
 use state::AppState;
@@ -35,6 +35,7 @@ pub fn run() {
             set_animation_paused,
             save_window_position,
             reset_window_position,
+            set_window_scale,
             set_click_through
         ])
         .run(tauri::generate_context!())

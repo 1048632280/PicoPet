@@ -37,3 +37,7 @@ export function saveWindowPosition(x: number, y: number): Promise<AppConfig> {
 export function resetWindowPosition(): Promise<AppConfig> {
   return invoke<AppConfig>("reset_window_position");
 }
+
+export function setWindowScale(scale: number): Promise<AppConfig> {
+  return invoke<AppConfig>("set_window_scale", { scale });
+}
