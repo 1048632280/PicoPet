@@ -6,7 +6,17 @@ Resident memory target: 50-100 MB release-build host + WebView2 child **Private 
 
 Summed total Working Set and Private Bytes must still be recorded as diagnostic and leak-context values. Total Working Set is not the merge gate because WebView2 shared runtime pages can be counted in multiple processes. If the app is launched from a shell and a `conhost` child appears in the process tree, record it in the raw tree but exclude it from the app target.
 
-## Command
+## Scripted Command
+
+Run PicoPet, wait 60 seconds, then execute:
+
+```powershell
+pnpm memory:windows -- -OutputJson docs/qa/memory-baseline.latest.json
+```
+
+The script excludes `LaunchShell` rows from `AppTargetWorkingSetPrivateMB` and keeps total Working Set as diagnostic context.
+
+## Manual Fallback Command
 
 Run PicoPet, wait 60 seconds, then execute:
 
