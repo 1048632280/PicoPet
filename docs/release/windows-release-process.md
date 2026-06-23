@@ -50,7 +50,7 @@ pnpm memory:windows -- -OutputJson docs/qa/memory-baseline.latest.json
 
 ## Release Notes
 
-For Alpha builds, include:
+For Windows release builds, include:
 
 - Commit SHA.
 - Windows version.

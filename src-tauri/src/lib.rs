@@ -17,21 +17,21 @@ use diagnostics::get_diagnostics_info;
 use state::AppState;
 use tauri::{Manager, WindowEvent};
 
+fn should_persist_main_window_position(label: &str, event: &WindowEvent) -> bool {
+    label == "main"
+        && matches!(
+            event,
+            WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed
+        )
+}
+
 pub fn run() {
     tauri::Builder::default()
         .on_window_event(|window, event| {
-            if window.label() != "main" {
-                return;
-            }
-
-            if matches!(
-                event,
-                WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed
-            ) {
-                if let Some(window) = window.app_handle().get_webview_window("main") {
-                    if let Err(error) = commands::persist_main_window_position(window) {
-                        eprintln!("窗口关闭前保存位置失败: {error}");
-                    }
+            if should_persist_main_window_position(window.label(), event) {
+                if let Err(error) = commands::persist_main_window_position_from_event_window(window)
+                {
+                    eprintln!("窗口关闭前保存位置失败: {error}");
                 }
             }
         })
@@ -63,4 +63,25 @@ pub fn run() {
         ])
         .run(tauri::generate_context!())
         .expect("failed to run PicoPet");
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn destroyed_main_window_event_requires_position_persistence() {
+        assert!(should_persist_main_window_position(
+            "main",
+            &WindowEvent::Destroyed
+        ));
+    }
+
+    #[test]
+    fn destroyed_non_main_window_event_does_not_persist_position() {
+        assert!(!should_persist_main_window_position(
+            "settings",
+            &WindowEvent::Destroyed
+        ));
+    }
 }
