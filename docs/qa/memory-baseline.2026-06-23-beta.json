@@ -1,0 +1,73 @@
+﻿{
+    "CapturedAt":  "2026-06-23T18:08:13",
+    "AppTargetWorkingSetPrivateMB":  83.4,
+    "DiagnosticTotalWorkingSetMB":  338.7,
+    "DiagnosticTotalPrivateBytesMB":  173.9,
+    "ProcessCount":  7,
+    "ExcludedLaunchShellCount":  0,
+    "Processes":  [
+                      {
+                          "Role":  "WebView2",
+                          "ProcessName":  "msedgewebview2",
+                          "Id":  27720,
+                          "ParentProcessId":  37144,
+                          "WorkingSetMB":  35.1,
+                          "PrivateBytesMB":  12.6,
+                          "WorkingSetPrivateMB":  6.1
+                      },
+                      {
+                          "Role":  "WebView2",
+                          "ProcessName":  "msedgewebview2",
+                          "Id":  35540,
+                          "ParentProcessId":  37144,
+                          "WorkingSetMB":  20,
+                          "PrivateBytesMB":  9.5,
+                          "WorkingSetPrivateMB":  3.3
+                      },
+                      {
+                          "Role":  "WebView2",
+                          "ProcessName":  "msedgewebview2",
+                          "Id":  37144,
+                          "ParentProcessId":  42728,
+                          "WorkingSetMB":  128.1,
+                          "PrivateBytesMB":  47.8,
+                          "WorkingSetPrivateMB":  35.1
+                      },
+                      {
+                          "Role":  "WebView2",
+                          "ProcessName":  "msedgewebview2",
+                          "Id":  41988,
+                          "ParentProcessId":  37144,
+                          "WorkingSetMB":  11.4,
+                          "PrivateBytesMB":  3,
+                          "WorkingSetPrivateMB":  1.8
+                      },
+                      {
+                          "Role":  "WebView2",
+                          "ProcessName":  "msedgewebview2",
+                          "Id":  42180,
+                          "ParentProcessId":  37144,
+                          "WorkingSetMB":  60.9,
+                          "PrivateBytesMB":  28.5,
+                          "WorkingSetPrivateMB":  17.2
+                      },
+                      {
+                          "Role":  "WebView2",
+                          "ProcessName":  "msedgewebview2",
+                          "Id":  42508,
+                          "ParentProcessId":  37144,
+                          "WorkingSetMB":  59.7,
+                          "PrivateBytesMB":  67.2,
+                          "WorkingSetPrivateMB":  16
+                      },
+                      {
+                          "Role":  "Host",
+                          "ProcessName":  "picopet",
+                          "Id":  42728,
+                          "ParentProcessId":  41944,
+                          "WorkingSetMB":  23.5,
+                          "PrivateBytesMB":  5.3,
+                          "WorkingSetPrivateMB":  3.9
+                      }
+                  ]
+}

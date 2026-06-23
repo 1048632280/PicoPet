@@ -12,13 +12,24 @@
 ```powershell
 chcp 65001
 $OutputEncoding = [System.Text.Encoding]::UTF8
-pnpm check:windows
+pnpm release:windows:gate
+```
+
+If the gate fails, run the lower-level diagnostic commands:
+
+```powershell
 pnpm check:windows:release
+pnpm artifact:windows
+pnpm memory:windows -- -OutputJson docs/qa/memory-baseline.latest.json
 ```
 
 ## Manual QA
 
-Run every item in `docs/qa/windows-alpha-checklist.md`.
+Run every item in:
+
+- `docs/qa/windows-beta-checklist.md`
+- `docs/qa/windows-alpha-checklist.md`
+- `docs/qa/windows-installer-checklist.md`
 
 ## Memory Baseline
 
@@ -39,10 +50,14 @@ pnpm memory:windows -- -OutputJson docs/qa/memory-baseline.latest.json
 
 ## Release Notes
 
-For Alpha builds, include:
+For Windows release builds, include:
 
 - Commit SHA.
 - Windows version.
 - WebView2 version.
 - `AppTargetWorkingSetPrivateMB`.
 - Known limitations from the README scope section.
+
+## Acceptance Records
+
+- Windows Alpha: `docs/qa/windows-alpha-acceptance-2026-06-23.md`

@@ -1,4 +1,7 @@
-use crate::config::AppConfig;
+use crate::{
+    config::AppConfig,
+    window_position::{normalize_position_for_screens, screens_with_primary_first, ScreenRect},
+};
 use tauri::WebviewWindow;
 
 #[derive(Debug, PartialEq)]
@@ -10,21 +13,20 @@ struct StartupWindowState {
     click_through: bool,
 }
 
-fn derive_startup_window_state(
-    config: &AppConfig,
-    screen_width: i32,
-    screen_height: i32,
-) -> StartupWindowState {
+fn derive_startup_window_state(config: &AppConfig, screens: &[ScreenRect]) -> StartupWindowState {
     let side = config.scaled_window_side() as u32;
-    let config =
-        config
-            .clone()
-            .with_window_bounds(screen_width, screen_height, side as i32, side as i32);
+    let (x, y) = normalize_position_for_screens(
+        config.window.x,
+        config.window.y,
+        side as i32,
+        side as i32,
+        screens,
+    );
 
     StartupWindowState {
         side,
-        x: config.window.x,
-        y: config.window.y,
+        x,
+        y,
         always_on_top: true,
         click_through: config.window.click_through,
     }
@@ -34,13 +36,27 @@ pub fn apply_startup_window_state(
     window: &WebviewWindow,
     config: &AppConfig,
 ) -> Result<(), String> {
-    let monitor = window
+    let screen_from_monitor = |monitor: &tauri::Monitor| {
+        let position = monitor.position();
+        let size = monitor.size();
+        ScreenRect {
+            x: position.x,
+            y: position.y,
+            width: size.width as i32,
+            height: size.height as i32,
+        }
+    };
+    let primary_screen = window
         .primary_monitor()
+        .map_err(|error| error.to_string())?
+        .as_ref()
+        .map(screen_from_monitor);
+    let monitors = window
+        .available_monitors()
         .map_err(|error| error.to_string())?;
-    let size = monitor.map(|monitor| *monitor.size());
-    let screen_width = size.as_ref().map(|size| size.width as i32).unwrap_or(1920);
-    let screen_height = size.as_ref().map(|size| size.height as i32).unwrap_or(1080);
-    let state = derive_startup_window_state(config, screen_width, screen_height);
+    let available_screens: Vec<ScreenRect> = monitors.iter().map(screen_from_monitor).collect();
+    let screens = screens_with_primary_first(primary_screen, &available_screens);
+    let state = derive_startup_window_state(config, &screens);
 
     window
         .set_size(tauri::Size::Physical(tauri::PhysicalSize {
@@ -76,7 +92,14 @@ mod tests {
         config.window.y = 9000;
         config.window.scale = 1.5;
 
-        let state = derive_startup_window_state(&config, 1920, 1080);
+        let screens = [ScreenRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        }];
+
+        let state = derive_startup_window_state(&config, &screens);
 
         assert_eq!(state.side, 240);
         assert_eq!(state.x, 1600);
@@ -92,7 +115,14 @@ mod tests {
         config.window.y = 9000;
         config.window.scale = 2.0;
 
-        let state = derive_startup_window_state(&config, 1920, 1080);
+        let screens = [ScreenRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        }];
+
+        let state = derive_startup_window_state(&config, &screens);
 
         assert_eq!(state.side, 320);
         assert_eq!(state.x, 1520);

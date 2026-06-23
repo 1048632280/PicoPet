@@ -1,5 +1,9 @@
-use crate::{config::AppConfig, state::AppState};
-use tauri::{State, WebviewWindow};
+use crate::{
+    config::AppConfig,
+    state::AppState,
+    window_position::{normalize_position_for_screens, screens_with_primary_first, ScreenRect},
+};
+use tauri::{Manager, State, WebviewWindow, Window};
 
 fn save_updated_config(
     state: &State<AppState>,
@@ -23,6 +27,16 @@ fn persist_window_position(config: &mut AppConfig, x: i32, y: i32) {
     config.window.y = y;
 }
 
+fn save_window_position_from_coordinates(
+    x: i32,
+    y: i32,
+    state: State<AppState>,
+) -> Result<AppConfig, String> {
+    save_updated_config(&state, |config| {
+        persist_window_position(config, x, y);
+    })
+}
+
 #[tauri::command]
 pub fn get_app_config(state: State<AppState>) -> Result<AppConfig, String> {
     let guard = state
@@ -41,9 +55,7 @@ pub fn set_animation_paused(paused: bool, state: State<AppState>) -> Result<AppC
 
 #[tauri::command]
 pub fn save_window_position(x: i32, y: i32, state: State<AppState>) -> Result<AppConfig, String> {
-    save_updated_config(&state, |config| {
-        persist_window_position(config, x, y);
-    })
+    save_window_position_from_coordinates(x, y, state)
 }
 
 pub fn save_current_window_position(
@@ -52,22 +64,62 @@ pub fn save_current_window_position(
 ) -> Result<AppConfig, String> {
     let position = window.outer_position().map_err(|error| error.to_string())?;
 
-    save_updated_config(&state, |config| {
-        persist_window_position(config, position.x, position.y);
-    })
+    save_window_position_from_coordinates(position.x, position.y, state)
+}
+
+pub fn persist_main_window_position(window: WebviewWindow) -> Result<AppConfig, String> {
+    let state_window = window.clone();
+    let state = state_window.state::<AppState>();
+    save_current_window_position(window, state)
+}
+
+pub fn persist_main_window_position_from_event_window(
+    window: &Window,
+) -> Result<AppConfig, String> {
+    let position = window.outer_position().map_err(|error| error.to_string())?;
+    let state = window.state::<AppState>();
+    save_window_position_from_coordinates(position.x, position.y, state)
+}
+
+fn screen_from_monitor(monitor: &tauri::Monitor) -> ScreenRect {
+    let position = monitor.position();
+    let size = monitor.size();
+    ScreenRect {
+        x: position.x,
+        y: position.y,
+        width: size.width as i32,
+        height: size.height as i32,
+    }
+}
+
+fn derive_window_geometry_config(config: &AppConfig, screens: &[ScreenRect]) -> AppConfig {
+    let mut visible = config.clone();
+    let side = visible.scaled_window_side();
+    let (x, y) = normalize_position_for_screens(
+        visible.window.x,
+        visible.window.y,
+        side,
+        side,
+        screens,
+    );
+    visible.window.x = x;
+    visible.window.y = y;
+    visible
 }
 
 fn apply_window_geometry(window: &WebviewWindow, config: &AppConfig) -> Result<AppConfig, String> {
-    let monitor = window
+    let primary_screen = window
         .primary_monitor()
+        .map_err(|error| error.to_string())?
+        .as_ref()
+        .map(screen_from_monitor);
+    let monitors = window
+        .available_monitors()
         .map_err(|error| error.to_string())?;
-    let size = monitor.map(|monitor| *monitor.size());
-    let width = size.as_ref().map(|size| size.width as i32).unwrap_or(1920);
-    let height = size.as_ref().map(|size| size.height as i32).unwrap_or(1080);
-    let side = config.scaled_window_side();
-    let visible = config
-        .clone()
-        .with_strict_window_bounds(width, height, side, side);
+    let available_screens: Vec<ScreenRect> = monitors.iter().map(screen_from_monitor).collect();
+    let screens = screens_with_primary_first(primary_screen, &available_screens);
+    let visible = derive_window_geometry_config(config, &screens);
+    let side = visible.scaled_window_side();
 
     window
         .set_size(tauri::Size::Physical(tauri::PhysicalSize {
@@ -147,6 +199,26 @@ pub fn set_click_through(
     })
 }
 
+#[tauri::command]
+pub fn set_launch_on_login(
+    enabled: bool,
+    app: tauri::AppHandle,
+    state: State<AppState>,
+) -> Result<AppConfig, String> {
+    #[cfg(target_os = "windows")]
+    {
+        let exe_path = std::env::current_exe().map_err(|error| error.to_string())?;
+        crate::platform::windows_autostart::set_launch_on_login("PicoPet", &exe_path, enabled)
+            .map_err(|error| error.to_string())?;
+    }
+
+    crate::logging::append_log(&app, &format!("开机自启动设置为: {enabled}"));
+
+    save_updated_config(&state, |config| {
+        config.startup.launch_on_login = enabled;
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -165,5 +237,33 @@ mod tests {
         assert_eq!(config.window.scale, 1.5);
         assert!(config.window.click_through);
         assert!(config.animation.paused);
+    }
+
+    #[test]
+    fn scaled_geometry_preserves_position_on_secondary_monitor() {
+        let mut config = AppConfig::default();
+        config.window.x = 2200;
+        config.window.y = 200;
+        config.window.scale = 2.0;
+        let screens = [
+            crate::window_position::ScreenRect {
+                x: 0,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+            crate::window_position::ScreenRect {
+                x: 1920,
+                y: 0,
+                width: 1920,
+                height: 1080,
+            },
+        ];
+
+        let visible = derive_window_geometry_config(&config, &screens);
+
+        assert_eq!(visible.window.x, 2200);
+        assert_eq!(visible.window.y, 200);
+        assert_eq!(visible.window.scale, 2.0);
     }
 }

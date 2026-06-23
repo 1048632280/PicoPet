@@ -4,7 +4,7 @@
 
 - Windows 10 or Windows 11.
 - WebView2 Runtime installed or installer can bootstrap it.
-- Built from branch `codex/windows-alpha-hardening`.
+- Accepted from branch `main` at commit `eb25abf`.
 - `pnpm check:windows` completed before manual QA.
 
 ## Manual Checks
@@ -27,3 +27,10 @@
 - [ ] Use tray menu `退出`; confirm no PicoPet process remains in Task Manager.
 - [ ] Launch release executable, wait 60 seconds, and run `pnpm memory:windows`.
 - [ ] Record `AppTargetWorkingSetPrivateMB` in `docs/qa/memory-baseline.md`.
+
+## Acceptance Result
+
+- Accepted on: 2026-06-23
+- Accepted commit: `eb25abf`
+- Acceptance record: `docs/qa/windows-alpha-acceptance-2026-06-23.md`
+- Follow-up phase: Windows Beta preparation
