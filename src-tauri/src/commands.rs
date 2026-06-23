@@ -50,7 +50,9 @@ fn apply_window_geometry(window: &WebviewWindow, config: &AppConfig) -> Result<A
     let width = size.as_ref().map(|size| size.width as i32).unwrap_or(1920);
     let height = size.as_ref().map(|size| size.height as i32).unwrap_or(1080);
     let side = config.scaled_window_side();
-    let visible = config.clone().with_window_bounds(width, height, side, side);
+    let visible = config
+        .clone()
+        .with_strict_window_bounds(width, height, side, side);
 
     window
         .set_size(tauri::Size::Physical(tauri::PhysicalSize {

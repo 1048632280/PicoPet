@@ -96,6 +96,22 @@ impl AppConfig {
 
         self
     }
+
+    pub fn with_strict_window_bounds(
+        mut self,
+        screen_width: i32,
+        screen_height: i32,
+        window_width: i32,
+        window_height: i32,
+    ) -> Self {
+        let max_x = (screen_width - window_width).max(0);
+        let max_y = (screen_height - window_height).max(0);
+
+        self.window.x = self.window.x.clamp(0, max_x);
+        self.window.y = self.window.y.clamp(0, max_y);
+
+        self
+    }
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
@@ -235,6 +251,20 @@ mod tests {
 
         assert_eq!(larger.window.scale, 1.25);
         assert_eq!(smaller.window.scale, 0.75);
+    }
+
+    #[test]
+    fn strict_window_bounds_clamps_scaled_position_inside_screen() {
+        let mut config = AppConfig::default();
+        config.window.x = 1660;
+        config.window.y = 20;
+        config.window.scale = 2.0;
+
+        let side = config.scaled_window_side();
+        let normalized = config.with_strict_window_bounds(1920, 1080, side, side);
+
+        assert_eq!(normalized.window.x, 1600);
+        assert_eq!(normalized.window.y, 20);
     }
 
     #[test]
