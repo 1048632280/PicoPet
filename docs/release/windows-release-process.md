@@ -19,6 +19,7 @@ If the gate fails, run the lower-level diagnostic commands:
 
 ```powershell
 pnpm check:windows:release
+pnpm portable:windows
 pnpm artifact:windows
 pnpm memory:windows -- -OutputJson docs/qa/memory-baseline.latest.json
 ```
@@ -46,7 +47,8 @@ pnpm memory:windows -- -OutputJson docs/qa/memory-baseline.latest.json
 ## Artifacts
 
 - Release executable: `src-tauri/target/release/picopet.exe`
-- NSIS installer: `src-tauri/target/release/bundle/nsis/`
+- NSIS installer: `src-tauri/target/release/bundle/nsis/PicoPet_0.1.0_x64-setup.exe`
+- Portable zip: `src-tauri/target/release/bundle/portable/PicoPet_0.1.0_x64-portable.zip`
 
 ## Release Notes
 
