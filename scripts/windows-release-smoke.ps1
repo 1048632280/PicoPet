@@ -33,6 +33,10 @@ Invoke-Step "pnpm tauri build --debug" { pnpm tauri build --debug }
 
 if ($Release) {
   Invoke-Step "pnpm tauri build" { pnpm tauri build }
+  $releaseExe = Join-Path $repoRoot "src-tauri\target\release\picopet.exe"
+  Invoke-Step "assert Windows GUI subsystem" {
+    & (Join-Path $PSScriptRoot "assert-windows-gui-subsystem.ps1") -ExePath $releaseExe
+  }
 }
 
 Write-Host "== Smoke check completed =="

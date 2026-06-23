@@ -18,6 +18,11 @@ fn save_updated_config(
     Ok(guard.clone())
 }
 
+fn persist_window_position(config: &mut AppConfig, x: i32, y: i32) {
+    config.window.x = x;
+    config.window.y = y;
+}
+
 #[tauri::command]
 pub fn get_app_config(state: State<AppState>) -> Result<AppConfig, String> {
     let guard = state
@@ -37,8 +42,18 @@ pub fn set_animation_paused(paused: bool, state: State<AppState>) -> Result<AppC
 #[tauri::command]
 pub fn save_window_position(x: i32, y: i32, state: State<AppState>) -> Result<AppConfig, String> {
     save_updated_config(&state, |config| {
-        config.window.x = x;
-        config.window.y = y;
+        persist_window_position(config, x, y);
+    })
+}
+
+pub fn save_current_window_position(
+    window: WebviewWindow,
+    state: State<AppState>,
+) -> Result<AppConfig, String> {
+    let position = window.outer_position().map_err(|error| error.to_string())?;
+
+    save_updated_config(&state, |config| {
+        persist_window_position(config, position.x, position.y);
     })
 }
 
@@ -130,4 +145,25 @@ pub fn set_click_through(
     save_updated_config(&state, |config| {
         config.window.click_through = enabled;
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn persist_window_position_only_updates_coordinates() {
+        let mut config = AppConfig::default();
+        config.window.scale = 1.5;
+        config.window.click_through = true;
+        config.animation.paused = true;
+
+        persist_window_position(&mut config, 320, 480);
+
+        assert_eq!(config.window.x, 320);
+        assert_eq!(config.window.y, 480);
+        assert_eq!(config.window.scale, 1.5);
+        assert!(config.window.click_through);
+        assert!(config.animation.paused);
+    }
 }

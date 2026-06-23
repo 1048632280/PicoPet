@@ -13,6 +13,12 @@ const SCALE_DOWN_ID: &str = "scale_down";
 const SCALE_RESET_ID: &str = "scale_reset";
 const EXIT_ID: &str = "exit";
 
+#[derive(Debug, PartialEq, Eq)]
+enum MenuEventAction {
+    PersistWindowPositionAndExit,
+    UseMainWindow,
+}
+
 pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
     let initial_config = app
         .state::<AppState>()
@@ -69,7 +75,10 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         let event_id = event.id();
         let event_id = event_id.as_ref();
 
-        if !menu_event_requires_main_window(event_id) {
+        if menu_event_action(event_id) == MenuEventAction::PersistWindowPositionAndExit {
+            if let Some(window) = app.get_webview_window("main") {
+                save_window_position_before_exit(app, window);
+            }
             app_handle.exit(0);
             return;
         }
@@ -108,8 +117,12 @@ fn click_through_label(enabled: bool) -> &'static str {
     }
 }
 
-fn menu_event_requires_main_window(id: &str) -> bool {
-    id != EXIT_ID
+fn menu_event_action(id: &str) -> MenuEventAction {
+    if id == EXIT_ID {
+        MenuEventAction::PersistWindowPositionAndExit
+    } else {
+        MenuEventAction::UseMainWindow
+    }
 }
 
 fn scale_up_value(current: f64) -> f64 {
@@ -130,6 +143,13 @@ fn scale_down_value(current: f64) -> f64 {
 
 fn emit_config(app: &AppHandle, config: crate::config::AppConfig) {
     let _ = app.emit("picopet://config", config);
+}
+
+fn save_window_position_before_exit(app: &AppHandle, window: WebviewWindow) {
+    let state = app.state::<AppState>();
+    if let Err(error) = commands::save_current_window_position(window, state) {
+        eprintln!("退出前保存窗口位置失败: {error}");
+    }
 }
 
 fn toggle_pause(app: &AppHandle, pause_item: &MenuItem<Wry>) {
@@ -198,18 +218,28 @@ mod tests {
     }
 
     #[test]
-    fn exit_menu_event_does_not_require_main_window() {
-        assert!(!menu_event_requires_main_window(EXIT_ID));
-        assert!(menu_event_requires_main_window(PAUSE_ID));
-        assert!(menu_event_requires_main_window(CLICK_THROUGH_ID));
-        assert!(menu_event_requires_main_window(RESET_ID));
+    fn exit_menu_event_persists_window_position_before_exit() {
+        assert_eq!(
+            menu_event_action(EXIT_ID),
+            MenuEventAction::PersistWindowPositionAndExit
+        );
+    }
+
+    #[test]
+    fn non_exit_menu_events_operate_on_main_window() {
+        assert_eq!(menu_event_action(PAUSE_ID), MenuEventAction::UseMainWindow);
+        assert_eq!(
+            menu_event_action(CLICK_THROUGH_ID),
+            MenuEventAction::UseMainWindow
+        );
+        assert_eq!(menu_event_action(RESET_ID), MenuEventAction::UseMainWindow);
     }
 
     #[test]
     fn scale_menu_event_requires_main_window() {
-        assert!(menu_event_requires_main_window(SCALE_UP_ID));
-        assert!(menu_event_requires_main_window(SCALE_DOWN_ID));
-        assert!(menu_event_requires_main_window(SCALE_RESET_ID));
+        assert_eq!(menu_event_action(SCALE_UP_ID), MenuEventAction::UseMainWindow);
+        assert_eq!(menu_event_action(SCALE_DOWN_ID), MenuEventAction::UseMainWindow);
+        assert_eq!(menu_event_action(SCALE_RESET_ID), MenuEventAction::UseMainWindow);
     }
 
     #[test]
