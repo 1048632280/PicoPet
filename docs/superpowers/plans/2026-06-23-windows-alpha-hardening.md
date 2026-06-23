@@ -466,10 +466,10 @@ pub fn with_scale_delta(self, delta: f64) -> Self {
 
 - [ ] **Step 4: Add the Tauri scale command**
 
-Modify `src-tauri/src/commands.rs` by adding a private geometry helper:
+Modify `src-tauri/src/commands.rs` by adding a private geometry helper that returns the visible config it applied:
 
 ```rust
-fn apply_window_geometry(window: &WebviewWindow, config: &AppConfig) -> Result<(), String> {
+fn apply_window_geometry(window: &WebviewWindow, config: &AppConfig) -> Result<AppConfig, String> {
     let monitor = window
         .primary_monitor()
         .map_err(|error| error.to_string())?;
@@ -494,7 +494,7 @@ fn apply_window_geometry(window: &WebviewWindow, config: &AppConfig) -> Result<(
         }))
         .map_err(|error| error.to_string())?;
 
-    Ok(())
+    Ok(visible)
 }
 ```
 
@@ -514,12 +514,12 @@ pub fn set_window_scale(
         .clone()
         .with_scale(scale);
 
-    apply_window_geometry(&window, &next_config)?;
+    let visible_config = apply_window_geometry(&window, &next_config)?;
 
     save_updated_config(&state, |config| {
-        config.window.scale = next_config.window.scale;
-        config.window.x = next_config.window.x;
-        config.window.y = next_config.window.y;
+        config.window.scale = visible_config.window.scale;
+        config.window.x = visible_config.window.x;
+        config.window.y = visible_config.window.y;
     })
 }
 ```
@@ -789,7 +789,15 @@ Run:
 
 ```powershell
 pnpm check:windows
-powershell -ExecutionPolicy Bypass -File scripts/windows-memory-baseline.ps1
+try {
+  powershell -ExecutionPolicy Bypass -File scripts/windows-memory-baseline.ps1
+  throw "memory script should require a running PicoPet process"
+} catch {
+  if ($_.Exception.Message -notlike "*No PicoPet process found*") {
+    throw
+  }
+  Write-Host "memory script reported the expected missing-process precondition"
+}
 ```
 
 Expected:
@@ -985,7 +993,11 @@ Run:
 
 ```powershell
 $badMarkers = @("TB" + "D", "TO" + "DO", "待" + "定", "以后" + "补", "place" + "holder", "占" + "位") -join "|"
-rg -n $badMarkers README.md docs/qa/windows-alpha-checklist.md docs/release/windows-release-process.md
+$matches = rg -n $badMarkers README.md docs/qa/windows-alpha-checklist.md docs/release/windows-release-process.md
+if ($LASTEXITCODE -eq 0) {
+  $matches
+  throw "documentation contains unresolved marker strings"
+}
 pnpm check
 ```
 
