@@ -7,6 +7,7 @@ const DEFAULT_Y: i32 = 680;
 const DEFAULT_SCALE: f64 = 1.0;
 const MIN_SCALE: f64 = 0.5;
 const MAX_SCALE: f64 = 2.0;
+pub const SCALE_STEP: f64 = 0.25;
 const DEFAULT_IDLE_FPS: u16 = 12;
 const DEFAULT_INTERACTIVE_FPS: u16 = 30;
 const PET_WINDOW_WIDTH: i32 = 160;
@@ -46,6 +47,16 @@ impl AppConfig {
 
     pub fn scaled_window_side(&self) -> i32 {
         (PET_WINDOW_WIDTH as f64 * self.window.scale.clamp(MIN_SCALE, MAX_SCALE)).round() as i32
+    }
+
+    pub fn with_scale(mut self, scale: f64) -> Self {
+        self.window.scale = scale;
+        self.sanitized()
+    }
+
+    pub fn with_scale_delta(self, delta: f64) -> Self {
+        let next = ((self.window.scale + delta) * 100.0).round() / 100.0;
+        self.with_scale(next)
     }
 
     pub fn placed_at_bottom_right(mut self, screen_width: i32, screen_height: i32) -> Self {
@@ -201,6 +212,29 @@ mod tests {
         assert_eq!(sanitized.window.scale, 2.0);
         assert_eq!(sanitized.animation.idle_fps, 12);
         assert_eq!(sanitized.animation.interactive_fps, 30);
+    }
+
+    #[test]
+    fn with_scale_clamps_to_supported_range() {
+        let config = AppConfig::default().with_scale(9.0);
+
+        assert_eq!(config.window.scale, 2.0);
+
+        let config = AppConfig::default().with_scale(0.1);
+
+        assert_eq!(config.window.scale, 0.5);
+    }
+
+    #[test]
+    fn with_scale_delta_moves_by_fixed_step() {
+        let mut config = AppConfig::default();
+        config.window.scale = 1.0;
+
+        let larger = config.clone().with_scale_delta(0.25);
+        let smaller = config.with_scale_delta(-0.25);
+
+        assert_eq!(larger.window.scale, 1.25);
+        assert_eq!(smaller.window.scale, 0.75);
     }
 
     #[test]

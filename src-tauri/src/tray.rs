@@ -8,6 +8,9 @@ use tauri::{
 const PAUSE_ID: &str = "toggle_pause";
 const CLICK_THROUGH_ID: &str = "toggle_click_through";
 const RESET_ID: &str = "reset_position";
+const SCALE_UP_ID: &str = "scale_up";
+const SCALE_DOWN_ID: &str = "scale_down";
+const SCALE_RESET_ID: &str = "scale_reset";
 const EXIT_ID: &str = "exit";
 
 pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
@@ -33,8 +36,22 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         None::<&str>,
     )?;
     let reset = MenuItem::with_id(app, RESET_ID, "重置位置", true, None::<&str>)?;
+    let scale_up = MenuItem::with_id(app, SCALE_UP_ID, "放大", true, None::<&str>)?;
+    let scale_down = MenuItem::with_id(app, SCALE_DOWN_ID, "缩小", true, None::<&str>)?;
+    let scale_reset = MenuItem::with_id(app, SCALE_RESET_ID, "重置大小", true, None::<&str>)?;
     let exit = MenuItem::with_id(app, EXIT_ID, "退出", true, None::<&str>)?;
-    let menu = Menu::with_items(app, &[&pause, &click_through, &reset, &exit])?;
+    let menu = Menu::with_items(
+        app,
+        &[
+            &pause,
+            &click_through,
+            &reset,
+            &scale_up,
+            &scale_down,
+            &scale_reset,
+            &exit,
+        ],
+    )?;
 
     let mut tray_builder = TrayIconBuilder::new()
         .menu(&menu)
@@ -65,6 +82,9 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
             PAUSE_ID => toggle_pause(app, &pause_item),
             CLICK_THROUGH_ID => toggle_click_through(app, &window, &click_through_item),
             RESET_ID => reset_position(app, window),
+            SCALE_UP_ID => scale_window(app, window, scale_up_value),
+            SCALE_DOWN_ID => scale_window(app, window, scale_down_value),
+            SCALE_RESET_ID => scale_window(app, window, |_| 1.0),
             _ => {}
         }
     });
@@ -90,6 +110,22 @@ fn click_through_label(enabled: bool) -> &'static str {
 
 fn menu_event_requires_main_window(id: &str) -> bool {
     id != EXIT_ID
+}
+
+fn scale_up_value(current: f64) -> f64 {
+    crate::config::AppConfig::default()
+        .with_scale(current)
+        .with_scale_delta(crate::config::SCALE_STEP)
+        .window
+        .scale
+}
+
+fn scale_down_value(current: f64) -> f64 {
+    crate::config::AppConfig::default()
+        .with_scale(current)
+        .with_scale_delta(-crate::config::SCALE_STEP)
+        .window
+        .scale
 }
 
 fn emit_config(app: &AppHandle, config: crate::config::AppConfig) {
@@ -133,6 +169,18 @@ fn reset_position(app: &AppHandle, window: WebviewWindow) {
     }
 }
 
+fn scale_window(app: &AppHandle, window: WebviewWindow, next_scale: impl FnOnce(f64) -> f64) {
+    let state = app.state::<AppState>();
+    let current_scale = state
+        .config
+        .lock()
+        .map(|config| config.window.scale)
+        .unwrap_or(1.0);
+    if let Ok(config) = commands::set_window_scale(next_scale(current_scale), window, state) {
+        emit_config(app, config);
+    }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -155,5 +203,20 @@ mod tests {
         assert!(menu_event_requires_main_window(PAUSE_ID));
         assert!(menu_event_requires_main_window(CLICK_THROUGH_ID));
         assert!(menu_event_requires_main_window(RESET_ID));
+    }
+
+    #[test]
+    fn scale_menu_event_requires_main_window() {
+        assert!(menu_event_requires_main_window(SCALE_UP_ID));
+        assert!(menu_event_requires_main_window(SCALE_DOWN_ID));
+        assert!(menu_event_requires_main_window(SCALE_RESET_ID));
+    }
+
+    #[test]
+    fn scale_step_helpers_clamp_at_bounds() {
+        assert_eq!(scale_up_value(1.0), 1.25);
+        assert_eq!(scale_up_value(2.0), 2.0);
+        assert_eq!(scale_down_value(1.0), 0.75);
+        assert_eq!(scale_down_value(0.5), 0.5);
     }
 }

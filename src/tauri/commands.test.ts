@@ -22,4 +22,13 @@ describe("command wrappers", () => {
 
     expect(invoke).toHaveBeenCalledWith("save_window_position", { x: 13, y: 99 });
   });
+
+  it("calls set_window_scale with the expected payload", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const { setWindowScale } = await import("./commands");
+
+    await setWindowScale(1.25);
+
+    expect(invoke).toHaveBeenCalledWith("set_window_scale", { scale: 1.25 });
+  });
 });
