@@ -3,6 +3,7 @@ pub mod config;
 mod diagnostics;
 mod logging;
 mod platform;
+mod portable_data;
 mod state;
 mod tray;
 mod window_position;
