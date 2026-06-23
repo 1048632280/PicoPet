@@ -4,7 +4,7 @@
 
 - Windows 10 or Windows 11.
 - WebView2 Runtime installed or installer can bootstrap it.
-- Built from branch `codex/windows-alpha-hardening`.
+- Accepted from branch `main` at commit `eb25abf`.
 - `pnpm check:windows` completed before manual QA.
 
 ## Manual Checks
