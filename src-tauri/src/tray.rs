@@ -145,9 +145,8 @@ fn emit_config(app: &AppHandle, config: crate::config::AppConfig) {
     let _ = app.emit("picopet://config", config);
 }
 
-fn save_window_position_before_exit(app: &AppHandle, window: WebviewWindow) {
-    let state = app.state::<AppState>();
-    if let Err(error) = commands::save_current_window_position(window, state) {
+fn save_window_position_before_exit(_app: &AppHandle, window: WebviewWindow) {
+    if let Err(error) = commands::persist_main_window_position(window) {
         eprintln!("退出前保存窗口位置失败: {error}");
     }
 }
@@ -237,9 +236,18 @@ mod tests {
 
     #[test]
     fn scale_menu_event_requires_main_window() {
-        assert_eq!(menu_event_action(SCALE_UP_ID), MenuEventAction::UseMainWindow);
-        assert_eq!(menu_event_action(SCALE_DOWN_ID), MenuEventAction::UseMainWindow);
-        assert_eq!(menu_event_action(SCALE_RESET_ID), MenuEventAction::UseMainWindow);
+        assert_eq!(
+            menu_event_action(SCALE_UP_ID),
+            MenuEventAction::UseMainWindow
+        );
+        assert_eq!(
+            menu_event_action(SCALE_DOWN_ID),
+            MenuEventAction::UseMainWindow
+        );
+        assert_eq!(
+            menu_event_action(SCALE_RESET_ID),
+            MenuEventAction::UseMainWindow
+        );
     }
 
     #[test]

@@ -1,5 +1,5 @@
 use crate::{config::AppConfig, state::AppState};
-use tauri::{State, WebviewWindow};
+use tauri::{Manager, State, WebviewWindow};
 
 fn save_updated_config(
     state: &State<AppState>,
@@ -55,6 +55,12 @@ pub fn save_current_window_position(
     save_updated_config(&state, |config| {
         persist_window_position(config, position.x, position.y);
     })
+}
+
+pub fn persist_main_window_position(window: WebviewWindow) -> Result<AppConfig, String> {
+    let state_window = window.clone();
+    let state = state_window.state::<AppState>();
+    save_current_window_position(window, state)
 }
 
 fn apply_window_geometry(window: &WebviewWindow, config: &AppConfig) -> Result<AppConfig, String> {

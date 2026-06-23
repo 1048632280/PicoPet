@@ -3,6 +3,7 @@ pub mod config;
 mod platform;
 mod state;
 mod tray;
+mod window_position;
 mod window_state;
 
 use commands::{
@@ -11,10 +12,26 @@ use commands::{
 };
 use config::ConfigStore;
 use state::AppState;
-use tauri::Manager;
+use tauri::{Manager, WindowEvent};
 
 pub fn run() {
     tauri::Builder::default()
+        .on_window_event(|window, event| {
+            if window.label() != "main" {
+                return;
+            }
+
+            if matches!(
+                event,
+                WindowEvent::CloseRequested { .. } | WindowEvent::Destroyed
+            ) {
+                if let Some(window) = window.app_handle().get_webview_window("main") {
+                    if let Err(error) = commands::persist_main_window_position(window) {
+                        eprintln!("窗口关闭前保存位置失败: {error}");
+                    }
+                }
+            }
+        })
         .setup(|app| {
             let config_dir = app.path().app_config_dir()?;
             let store = ConfigStore::new(config_dir.join("config.json"));
