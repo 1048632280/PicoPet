@@ -39,6 +39,10 @@ pnpm memory:windows -- -OutputJson docs/qa/memory-baseline.latest.json
 
 ## Release Notes
 
+## Acceptance Records
+
+- Windows Alpha: `docs/qa/windows-alpha-acceptance-2026-06-23.md`
+
 For Alpha builds, include:
 
 - Commit SHA.
