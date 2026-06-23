@@ -12,15 +12,22 @@
 ```powershell
 chcp 65001
 $OutputEncoding = [System.Text.Encoding]::UTF8
-pnpm check:windows
+pnpm release:windows:gate
+```
+
+If the gate fails, run the lower-level diagnostic commands:
+
+```powershell
 pnpm check:windows:release
 pnpm artifact:windows
+pnpm memory:windows -- -OutputJson docs/qa/memory-baseline.latest.json
 ```
 
 ## Manual QA
 
 Run every item in:
 
+- `docs/qa/windows-beta-checklist.md`
 - `docs/qa/windows-alpha-checklist.md`
 - `docs/qa/windows-installer-checklist.md`
 

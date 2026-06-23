@@ -12,6 +12,7 @@
     "check:windows:release": "powershell -ExecutionPolicy Bypass -File scripts/windows-release-smoke.ps1 -Release",
     "artifact:windows": "powershell -ExecutionPolicy Bypass -File scripts/assert-windows-artifacts.ps1",
     "memory:windows": "powershell -ExecutionPolicy Bypass -File scripts/windows-memory-baseline.ps1",
+    "release:windows:gate": "powershell -ExecutionPolicy Bypass -File scripts/windows-release-gate.ps1",
     "tauri": "tauri"
   },
   "dependencies": {
