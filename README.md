@@ -73,11 +73,12 @@ PicoPet/
 
 ```powershell
 pnpm check:windows
+pnpm portable:windows
 pnpm memory:windows
 ```
 
-Use `docs/qa/windows-alpha-checklist.md` for manual Alpha verification and `docs/qa/memory-baseline.md` for memory records.
-Use `docs/qa/windows-beta-checklist.md` before tagging a Beta build.
+Use `docs/qa/windows-beta-checklist.md` for manual Beta runtime and portable zip verification, `docs/qa/windows-installer-checklist.md` for installer QA, and `docs/qa/memory-baseline.md` for memory records before tagging a Beta build.
+`docs/qa/windows-alpha-checklist.md` is historical Alpha documentation only and is not part of active Beta release QA.
 
 ## Scope
 
