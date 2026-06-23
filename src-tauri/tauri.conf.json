@@ -15,6 +15,7 @@
       {
         "label": "main",
         "title": "PicoPet",
+        "create": false,
         "width": 160,
         "height": 160,
         "decorations": false,

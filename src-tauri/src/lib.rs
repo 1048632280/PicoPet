@@ -2,6 +2,7 @@ mod commands;
 pub mod config;
 mod diagnostics;
 mod logging;
+mod main_window;
 mod platform;
 mod portable_data;
 mod state;
@@ -43,10 +44,12 @@ pub fn run() {
             let config = store.load_or_repair()?;
             app.manage(AppState::new(config.clone(), store, data_dir.clone()));
             logging::append_log(app.handle(), "PicoPet 启动");
-            if let Some(window) = app.get_webview_window("main") {
-                if let Err(error) = window_state::apply_startup_window_state(&window, &config) {
-                    eprintln!("窗口状态应用失败: {error}");
-                }
+            let window_config = main_window::find_main_window_config(&app.config().app.windows)
+                .map_err(|error| std::io::Error::new(std::io::ErrorKind::NotFound, error))?
+                .clone();
+            let window = main_window::create_main_window(app.handle(), &window_config, &data_dir)?;
+            if let Err(error) = window_state::apply_startup_window_state(&window, &config) {
+                eprintln!("窗口状态应用失败: {error}");
             }
             if let Err(error) = tray::setup_tray(app.handle()) {
                 eprintln!("托盘初始化失败: {error}");
