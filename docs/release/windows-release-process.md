@@ -14,11 +14,15 @@ chcp 65001
 $OutputEncoding = [System.Text.Encoding]::UTF8
 pnpm check:windows
 pnpm check:windows:release
+pnpm artifact:windows
 ```
 
 ## Manual QA
 
-Run every item in `docs/qa/windows-alpha-checklist.md`.
+Run every item in:
+
+- `docs/qa/windows-alpha-checklist.md`
+- `docs/qa/windows-installer-checklist.md`
 
 ## Memory Baseline
 
