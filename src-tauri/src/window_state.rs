@@ -1,6 +1,6 @@
 use crate::{
     config::AppConfig,
-    window_position::{normalize_position_for_screens, ScreenRect},
+    window_position::{normalize_position_for_screens, screens_with_primary_first, ScreenRect},
 };
 use tauri::WebviewWindow;
 
@@ -36,22 +36,26 @@ pub fn apply_startup_window_state(
     window: &WebviewWindow,
     config: &AppConfig,
 ) -> Result<(), String> {
+    let screen_from_monitor = |monitor: &tauri::Monitor| {
+        let position = monitor.position();
+        let size = monitor.size();
+        ScreenRect {
+            x: position.x,
+            y: position.y,
+            width: size.width as i32,
+            height: size.height as i32,
+        }
+    };
+    let primary_screen = window
+        .primary_monitor()
+        .map_err(|error| error.to_string())?
+        .as_ref()
+        .map(screen_from_monitor);
     let monitors = window
         .available_monitors()
         .map_err(|error| error.to_string())?;
-    let screens: Vec<ScreenRect> = monitors
-        .iter()
-        .map(|monitor| {
-            let position = monitor.position();
-            let size = monitor.size();
-            ScreenRect {
-                x: position.x,
-                y: position.y,
-                width: size.width as i32,
-                height: size.height as i32,
-            }
-        })
-        .collect();
+    let available_screens: Vec<ScreenRect> = monitors.iter().map(screen_from_monitor).collect();
+    let screens = screens_with_primary_first(primary_screen, &available_screens);
     let state = derive_startup_window_state(config, &screens);
 
     window

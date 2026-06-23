@@ -52,6 +52,20 @@ pub fn normalize_position_for_screens(
     )
 }
 
+pub fn screens_with_primary_first(
+    primary: Option<ScreenRect>,
+    screens: &[ScreenRect],
+) -> Vec<ScreenRect> {
+    let Some(primary) = primary else {
+        return screens.to_vec();
+    };
+
+    let mut ordered = Vec::with_capacity(screens.len().max(1));
+    ordered.push(primary);
+    ordered.extend(screens.iter().copied().filter(|screen| *screen != primary));
+    ordered
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -109,6 +123,28 @@ mod tests {
             height: 1080,
         }];
 
+        let position = normalize_position_for_screens(9000, 9000, 160, 160, &screens);
+
+        assert_eq!(position, (1680, 840));
+    }
+
+    #[test]
+    fn orders_primary_screen_first_when_available_monitors_lists_secondary_first() {
+        let primary = ScreenRect {
+            x: 0,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let secondary = ScreenRect {
+            x: 1920,
+            y: 0,
+            width: 1920,
+            height: 1080,
+        };
+        let available_screens = [secondary, primary];
+
+        let screens = screens_with_primary_first(Some(primary), &available_screens);
         let position = normalize_position_for_screens(9000, 9000, 160, 160, &screens);
 
         assert_eq!(position, (1680, 840));
