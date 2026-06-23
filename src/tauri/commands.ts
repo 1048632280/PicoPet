@@ -21,6 +21,7 @@ export type AppConfig = {
 export type DiagnosticsInfo = {
   version: string;
   config_dir: string;
+  config_file: string;
   log_file: string;
 };
 

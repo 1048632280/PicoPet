@@ -37,10 +37,11 @@ pub fn run() {
             }
         })
         .setup(|app| {
-            let config_dir = app.path().app_config_dir()?;
-            let store = ConfigStore::new(config_dir.join("config.json"));
+            let data_dir = portable_data::current_exe_data_dir()?;
+            portable_data::ensure_data_dirs(&data_dir)?;
+            let store = ConfigStore::new(portable_data::config_file_path(&data_dir));
             let config = store.load_or_repair()?;
-            app.manage(AppState::new(config.clone(), store));
+            app.manage(AppState::new(config.clone(), store, data_dir.clone()));
             logging::append_log(app.handle(), "PicoPet 启动");
             if let Some(window) = app.get_webview_window("main") {
                 if let Err(error) = window_state::apply_startup_window_state(&window, &config) {

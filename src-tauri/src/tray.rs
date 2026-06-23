@@ -245,10 +245,11 @@ fn toggle_launch_on_login(app: &AppHandle, launch_on_login_item: &MenuItem<Wry>)
 }
 
 fn open_config_dir(app: &AppHandle) {
-    if let Ok(path) = app.path().app_config_dir() {
-        let _ = std::process::Command::new("explorer").arg(path).spawn();
-        crate::logging::append_log(app, "打开配置目录");
-    }
+    let state = app.state::<AppState>();
+    let _ = std::process::Command::new("explorer")
+        .arg(&state.data_dir)
+        .spawn();
+    crate::logging::append_log(app, "打开配置目录");
 }
 
 fn reset_position(app: &AppHandle, window: WebviewWindow) {
