@@ -19,6 +19,7 @@ If the gate fails, run the lower-level diagnostic commands:
 
 ```powershell
 pnpm check:windows:release
+pnpm portable:windows
 pnpm artifact:windows
 pnpm memory:windows -- -OutputJson docs/qa/memory-baseline.latest.json
 ```
@@ -28,8 +29,10 @@ pnpm memory:windows -- -OutputJson docs/qa/memory-baseline.latest.json
 Run every item in:
 
 - `docs/qa/windows-beta-checklist.md`
-- `docs/qa/windows-alpha-checklist.md`
 - `docs/qa/windows-installer-checklist.md`
+
+Confirm the Beta checklist covers runtime behavior and portable zip QA. Confirm the installer checklist covers clean install, overwrite install, and uninstall behavior with `PicoPet/data/`.
+`docs/qa/windows-alpha-checklist.md` is retained as historical Alpha documentation only and is not part of active Beta release QA.
 
 ## Memory Baseline
 
@@ -46,7 +49,8 @@ pnpm memory:windows -- -OutputJson docs/qa/memory-baseline.latest.json
 ## Artifacts
 
 - Release executable: `src-tauri/target/release/picopet.exe`
-- NSIS installer: `src-tauri/target/release/bundle/nsis/`
+- NSIS installer: `src-tauri/target/release/bundle/nsis/PicoPet_0.1.0_x64-setup.exe`
+- Portable zip: `src-tauri/target/release/bundle/portable/PicoPet_0.1.0_x64-portable.zip`
 
 ## Release Notes
 
@@ -60,4 +64,8 @@ For Windows release builds, include:
 
 ## Acceptance Records
 
-- Windows Alpha: `docs/qa/windows-alpha-acceptance-2026-06-23.md`
+- Windows Beta manual QA: `docs/qa/windows-beta-checklist.md`
+- Windows installer QA: `docs/qa/windows-installer-checklist.md`
+- Windows memory baseline: `docs/qa/memory-baseline.md`
+- Latest memory JSON artifact: `docs/qa/memory-baseline.latest.json`
+- Historical Windows Alpha record only: `docs/qa/windows-alpha-acceptance-2026-06-23.md`

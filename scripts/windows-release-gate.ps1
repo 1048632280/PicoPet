@@ -28,6 +28,7 @@ if (Test-Path $shimDir) {
 }
 
 Invoke-Step "windows release smoke" { pnpm check:windows:release }
+Invoke-Step "windows portable artifact packaging" { pnpm portable:windows }
 Invoke-Step "windows artifact validation" { pnpm artifact:windows }
 
 if (-not $SkipManualReminder) {
