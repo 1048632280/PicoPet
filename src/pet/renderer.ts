@@ -1,3 +1,5 @@
+import { defaultRenderEffect } from "./behavior/effects";
+import type { RenderEffect } from "./behavior/types";
 import type { AtlasManifest } from "./types";
 
 export class PetRenderer {
@@ -21,23 +23,31 @@ export class PetRenderer {
     this.image = image;
   }
 
-  renderFrame(frameIndex: number): void {
+  renderFrame(frameIndex: number, effect: RenderEffect = defaultRenderEffect()): void {
     if (!this.image || frameIndex < 0 || frameIndex >= this.atlas.frames) {
       return;
     }
 
     this.context.clearRect(0, 0, this.canvas.width, this.canvas.height);
+    this.context.save();
+    this.context.globalAlpha = effect.alpha;
+    this.context.translate(
+      this.canvas.width / 2 + effect.offsetX,
+      this.canvas.height / 2 + effect.offsetY
+    );
+    this.context.scale(effect.scale, effect.scale);
     this.context.drawImage(
       this.image,
       frameIndex * this.atlas.frame_width,
       0,
       this.atlas.frame_width,
       this.atlas.frame_height,
-      0,
-      0,
+      -this.atlas.frame_width / 2,
+      -this.atlas.frame_height / 2,
       this.atlas.frame_width,
       this.atlas.frame_height
     );
+    this.context.restore();
   }
 
   renderFallback(): void {
