@@ -49,8 +49,8 @@ pnpm memory:windows -- -OutputJson docs/qa/memory-baseline.latest.json
 ## Artifacts
 
 - Release executable: `src-tauri/target/release/picopet.exe`
-- NSIS installer: `src-tauri/target/release/bundle/nsis/PicoPet_0.1.0_x64-setup.exe`
-- Portable zip: `src-tauri/target/release/bundle/portable/PicoPet_0.1.0_x64-portable.zip`
+- NSIS installer: `src-tauri/target/release/bundle/nsis/PicoPet_0.2.0-beta.1_x64-setup.exe`
+- Portable zip: `src-tauri/target/release/bundle/portable/PicoPet_0.2.0-beta.1_x64-portable.zip`
 
 ## Release Notes
 

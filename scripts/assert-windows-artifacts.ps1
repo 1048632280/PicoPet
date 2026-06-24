@@ -13,10 +13,10 @@ if ($ReleaseExe -eq "") {
   $ReleaseExe = Join-Path $repoRoot "src-tauri\target\release\picopet.exe"
 }
 if ($Installer -eq "") {
-  $Installer = Join-Path $repoRoot "src-tauri\target\release\bundle\nsis\PicoPet_0.1.0_x64-setup.exe"
+  $Installer = Join-Path $repoRoot "src-tauri\target\release\bundle\nsis\PicoPet_0.2.0-beta.1_x64-setup.exe"
 }
 if ($PortableZip -eq "") {
-  $PortableZip = Join-Path $repoRoot "src-tauri\target\release\bundle\portable\PicoPet_0.1.0_x64-portable.zip"
+  $PortableZip = Join-Path $repoRoot "src-tauri\target\release\bundle\portable\PicoPet_0.2.0-beta.1_x64-portable.zip"
 }
 
 function Assert-File {

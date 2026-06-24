@@ -5,12 +5,12 @@
 - Windows 10 or Windows 11.
 - Test account is a normal user account.
 - Existing PicoPet processes are stopped before installation.
-- Release installer exists at `src-tauri/target/release/bundle/nsis/PicoPet_0.1.0_x64-setup.exe`.
+- Release installer exists at `src-tauri/target/release/bundle/nsis/PicoPet_0.2.0-beta.1_x64-setup.exe`.
 - Install into a user-writable directory for Beta portable-data testing.
 
 ## Clean Install
 
-- [ ] Run `PicoPet_0.1.0_x64-setup.exe`.
+- [ ] Run `PicoPet_0.2.0-beta.1_x64-setup.exe`.
 - [ ] Confirm the installer completes without an error dialog.
 - [ ] Launch PicoPet from the installed shortcut or Start menu entry.
 - [ ] Confirm no cmd/conhost window appears.
