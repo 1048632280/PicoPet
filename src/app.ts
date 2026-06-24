@@ -67,8 +67,9 @@ export async function boot(): Promise<string> {
     behavior.pointerDown(startedAt);
     loop.sync();
 
+    const dragStartPosition = await appWindow.outerPosition();
     const finalPosition = await readPositionAfterNativeDrag(appWindow);
-    const movedDistance = Math.hypot(finalPosition.x - anchorPosition.x, finalPosition.y - anchorPosition.y);
+    const movedDistance = Math.hypot(finalPosition.x - dragStartPosition.x, finalPosition.y - dragStartPosition.y);
     const finishedAt = performance.now();
 
     if (movedDistance > dragThresholdPx) {

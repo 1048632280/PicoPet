@@ -111,9 +111,9 @@ function mockCanvasContext(): ContextMock {
 }
 
 async function flushNativeDragFlow() {
-  await Promise.resolve();
-  await Promise.resolve();
-  await Promise.resolve();
+  for (let index = 0; index < 5; index += 1) {
+    await Promise.resolve();
+  }
 }
 
 describe("boot", () => {
@@ -213,9 +213,30 @@ describe("boot", () => {
     expect(commandMocks.saveWindowPosition).not.toHaveBeenCalled();
   });
 
+  it("treats an unchanged native drag at a walked offset as a short press without saving position", async () => {
+    mockCanvasContext();
+    windowApiMocks.outerPosition
+      .mockResolvedValueOnce({ x: 1240, y: 680 })
+      .mockResolvedValueOnce({ x: 1240, y: 680 });
+    document.body.innerHTML = '<canvas id="pet-canvas"></canvas>';
+    const { boot } = await import("./app");
+
+    await boot();
+    document.querySelector<HTMLCanvasElement>("#pet-canvas")?.dispatchEvent(
+      new MouseEvent("pointerdown", { button: 0 })
+    );
+    await flushNativeDragFlow();
+
+    expect(windowApiMocks.startDragging).toHaveBeenCalledTimes(1);
+    expect(windowApiMocks.outerPosition).toHaveBeenCalledTimes(2);
+    expect(commandMocks.saveWindowPosition).not.toHaveBeenCalled();
+  });
+
   it("saves position when native drag changes the outer position past the drag threshold", async () => {
     mockCanvasContext();
-    windowApiMocks.outerPosition.mockResolvedValue({ x: 1230, y: 680 });
+    windowApiMocks.outerPosition
+      .mockResolvedValueOnce({ x: 1200, y: 680 })
+      .mockResolvedValueOnce({ x: 1230, y: 680 });
     commandMocks.saveWindowPosition.mockResolvedValue({
       ...cloneDefaultConfig(),
       window: {
