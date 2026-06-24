@@ -10,6 +10,11 @@ const MAX_SCALE: f64 = 2.0;
 pub const SCALE_STEP: f64 = 0.25;
 const DEFAULT_IDLE_FPS: u16 = 12;
 const DEFAULT_INTERACTIVE_FPS: u16 = 30;
+const DEFAULT_BEHAVIOR_PRESET: &str = "quiet";
+const DEFAULT_WALK_MODE: &str = "short_range";
+const DEFAULT_SLEEP_AFTER_IDLE_SECONDS: u32 = 900;
+const MIN_SLEEP_AFTER_IDLE_SECONDS: u32 = 60;
+const MAX_SLEEP_AFTER_IDLE_SECONDS: u32 = 86_400;
 const PET_WINDOW_WIDTH: i32 = 160;
 const PET_WINDOW_HEIGHT: i32 = 160;
 const SCREEN_MARGIN: i32 = 80;
@@ -20,6 +25,7 @@ pub struct AppConfig {
     pub window: WindowConfig,
     pub animation: AnimationConfig,
     pub startup: StartupConfig,
+    pub behavior: BehaviorConfig,
 }
 
 impl Default for AppConfig {
@@ -28,6 +34,7 @@ impl Default for AppConfig {
             window: WindowConfig::default(),
             animation: AnimationConfig::default(),
             startup: StartupConfig::default(),
+            behavior: BehaviorConfig::default(),
         }
     }
 }
@@ -44,6 +51,16 @@ impl AppConfig {
         {
             self.animation.interactive_fps = DEFAULT_INTERACTIVE_FPS;
         }
+        if self.behavior.preset != DEFAULT_BEHAVIOR_PRESET {
+            self.behavior.preset = DEFAULT_BEHAVIOR_PRESET.to_string();
+        }
+        if self.behavior.walk_mode != DEFAULT_WALK_MODE {
+            self.behavior.walk_mode = DEFAULT_WALK_MODE.to_string();
+        }
+        self.behavior.sleep_after_idle_seconds = self
+            .behavior
+            .sleep_after_idle_seconds
+            .clamp(MIN_SLEEP_AFTER_IDLE_SECONDS, MAX_SLEEP_AFTER_IDLE_SECONDS);
         self
     }
 
@@ -170,6 +187,26 @@ impl Default for StartupConfig {
     }
 }
 
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[serde(default)]
+pub struct BehaviorConfig {
+    pub enabled: bool,
+    pub preset: String,
+    pub walk_mode: String,
+    pub sleep_after_idle_seconds: u32,
+}
+
+impl Default for BehaviorConfig {
+    fn default() -> Self {
+        Self {
+            enabled: true,
+            preset: DEFAULT_BEHAVIOR_PRESET.to_string(),
+            walk_mode: DEFAULT_WALK_MODE.to_string(),
+            sleep_after_idle_seconds: DEFAULT_SLEEP_AFTER_IDLE_SECONDS,
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum ConfigError {
     #[error("failed to read or write config: {0}")]
@@ -250,6 +287,94 @@ mod tests {
 
         assert!(repaired.contains("\"startup\""));
         assert!(repaired.contains("\"launch_on_login\": false"));
+    }
+
+    #[test]
+    fn default_config_contains_behavior_section() {
+        let config = AppConfig::default();
+
+        assert!(config.behavior.enabled);
+        assert_eq!(config.behavior.preset, "quiet");
+        assert_eq!(config.behavior.walk_mode, "short_range");
+        assert_eq!(config.behavior.sleep_after_idle_seconds, 900);
+    }
+
+    #[test]
+    fn repaired_config_contains_behavior_section() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("config.json");
+        let store = ConfigStore::new(path.clone());
+
+        let _ = store.load_or_repair().unwrap();
+        let repaired = std::fs::read_to_string(path).unwrap();
+
+        assert!(repaired.contains("\"behavior\""));
+        assert!(repaired.contains("\"enabled\": true"));
+        assert!(repaired.contains("\"preset\": \"quiet\""));
+        assert!(repaired.contains("\"walk_mode\": \"short_range\""));
+        assert!(repaired.contains("\"sleep_after_idle_seconds\": 900"));
+    }
+
+    #[test]
+    fn old_config_is_repaired_with_default_behavior() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("config.json");
+        std::fs::write(
+            &path,
+            r#"{
+  "window": {
+    "x": 320,
+    "y": 240,
+    "scale": 1.25,
+    "always_on_top": true,
+    "click_through": false
+  },
+  "animation": {
+    "paused": false,
+    "idle_fps": 12,
+    "interactive_fps": 30
+  },
+  "startup": {
+    "launch_on_login": false
+  }
+}
+"#,
+        )
+        .unwrap();
+        let store = ConfigStore::new(path.clone());
+
+        let config = store.load_or_repair().unwrap();
+        let repaired = std::fs::read_to_string(path).unwrap();
+
+        assert_eq!(config.window.x, 320);
+        assert_eq!(config.window.y, 240);
+        assert_eq!(config.window.scale, 1.25);
+        assert!(config.behavior.enabled);
+        assert_eq!(config.behavior.preset, "quiet");
+        assert!(repaired.contains("\"behavior\""));
+    }
+
+    #[test]
+    fn sanitized_behavior_config_clamps_unknown_values_and_sleep_timeout() {
+        let mut config = AppConfig::default();
+        config.behavior.enabled = false;
+        config.behavior.preset = "loud".to_string();
+        config.behavior.walk_mode = "teleport".to_string();
+        config.behavior.sleep_after_idle_seconds = 5;
+
+        let sanitized = config.sanitized();
+
+        assert!(!sanitized.behavior.enabled);
+        assert_eq!(sanitized.behavior.preset, "quiet");
+        assert_eq!(sanitized.behavior.walk_mode, "short_range");
+        assert_eq!(sanitized.behavior.sleep_after_idle_seconds, 60);
+
+        let mut config = AppConfig::default();
+        config.behavior.sleep_after_idle_seconds = 100_000;
+
+        let sanitized = config.sanitized();
+
+        assert_eq!(sanitized.behavior.sleep_after_idle_seconds, 86_400);
     }
 
     #[test]
