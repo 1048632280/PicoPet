@@ -42,8 +42,15 @@ const defaultConfig = {
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({
     startDragging: vi.fn(async () => undefined),
-    outerPosition: vi.fn(async () => ({ x: 1200, y: 680 }))
-  })
+    outerPosition: vi.fn(async () => ({ x: 1200, y: 680 })),
+    setPosition: vi.fn(async () => undefined)
+  }),
+  PhysicalPosition: class PhysicalPosition {
+    constructor(
+      public readonly x: number,
+      public readonly y: number
+    ) {}
+  }
 }));
 
 vi.mock("@tauri-apps/api/event", () => ({
@@ -58,6 +65,10 @@ vi.mock("./tauri/commands", () => ({
 type ContextMock = CanvasRenderingContext2D & {
   clearRect: ReturnType<typeof vi.fn>;
   drawImage: ReturnType<typeof vi.fn>;
+  save: ReturnType<typeof vi.fn>;
+  restore: ReturnType<typeof vi.fn>;
+  translate: ReturnType<typeof vi.fn>;
+  scale: ReturnType<typeof vi.fn>;
 };
 
 function cloneDefaultConfig() {
@@ -80,6 +91,10 @@ function mockCanvasContext(): ContextMock {
   const context = {
     clearRect: vi.fn(),
     drawImage: vi.fn(),
+    save: vi.fn(),
+    restore: vi.fn(),
+    translate: vi.fn(),
+    scale: vi.fn(),
     beginPath: vi.fn(),
     arc: vi.fn(),
     fill: vi.fn(),
@@ -129,7 +144,7 @@ describe("boot", () => {
 
     expect(context.clearRect).toHaveBeenCalledWith(0, 0, 128, 128);
     expect(context.drawImage).toHaveBeenCalledTimes(1);
-    expect(context.drawImage).toHaveBeenCalledWith(expect.any(Object), 0, 0, 128, 128, 0, 0, 128, 128);
+    expect(context.drawImage).toHaveBeenCalledWith(expect.any(Object), 0, 0, 128, 128, -64, -64, 128, 128);
     expect(frameMocks.requestAnimationFrame).not.toHaveBeenCalled();
   });
 
