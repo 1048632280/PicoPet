@@ -1,4 +1,5 @@
 import { beforeEach, describe, expect, it, vi } from "vitest";
+import type { AppConfig } from "./tauri/commands";
 
 const commandMocks = vi.hoisted(() => ({
   getAppConfig: vi.fn(),
@@ -26,8 +27,17 @@ const defaultConfig = {
     paused: false,
     idle_fps: 12,
     interactive_fps: 30
+  },
+  startup: {
+    launch_on_login: false
+  },
+  behavior: {
+    enabled: true,
+    preset: "quiet",
+    walk_mode: "short_range",
+    sleep_after_idle_seconds: 900
   }
-};
+} satisfies AppConfig;
 
 vi.mock("@tauri-apps/api/window", () => ({
   getCurrentWindow: () => ({
@@ -148,6 +158,17 @@ describe("boot", () => {
     );
 
     expect(commandMocks.saveWindowPosition).not.toHaveBeenCalled();
+  });
+
+  it("keeps behavior config available from the runtime config", async () => {
+    mockCanvasContext();
+    document.body.innerHTML = '<canvas id="pet-canvas"></canvas>';
+    const { boot } = await import("./app");
+
+    await boot();
+
+    expect(commandMocks.getAppConfig).toHaveBeenCalledTimes(1);
+    expect(commandMocks.getAppConfig.mock.results[0].type).toBe("return");
   });
 
   it("applies tray config scale changes to the canvas size", async () => {
