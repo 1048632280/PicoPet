@@ -10,6 +10,7 @@ import { createBehaviorController } from "./pet/behavior/controller";
 import { renderEffectForState } from "./pet/behavior/effects";
 import { shortRangeWalkPosition } from "./pet/behavior/motion";
 import { createQuietBehaviorTiming } from "./pet/behavior/timing";
+import type { BehaviorSnapshot } from "./pet/behavior/types";
 import { PetRenderer } from "./pet/renderer";
 import { getAppConfig, saveWindowPosition } from "./tauri/commands";
 import { moveWindowTo, readPositionAfterNativeDrag } from "./tauri/window";
@@ -39,6 +40,8 @@ export async function boot(): Promise<string> {
   };
   let walkDirection: 1 | -1 = 1;
   let walkMovePending = false;
+  let walkMoveToken = 0;
+  let lastBehaviorState = behavior.snapshot().state;
   const dragThresholdPx = 6;
 
   const applyCanvasScale = () => {
@@ -46,11 +49,29 @@ export async function boot(): Promise<string> {
     canvas.style.height = `${atlas.frame_height * config.window.scale}px`;
   };
   const isAnimationActive = () => imageReady && !paused && !document.hidden;
+  const returnWindowToAnchor = () => {
+    walkMoveToken += 1;
+    walkMovePending = false;
+    void moveWindowTo(appWindow, anchorPosition.x, anchorPosition.y).catch(() => undefined);
+  };
+  const syncBehaviorSnapshot = (snapshot: BehaviorSnapshot) => {
+    if (lastBehaviorState !== "walk" && snapshot.state === "walk") {
+      walkMoveToken += 1;
+      walkMovePending = false;
+    }
+    if (lastBehaviorState === "walk" && snapshot.state !== "walk") {
+      returnWindowToAnchor();
+    }
+    lastBehaviorState = snapshot.state;
+    return snapshot;
+  };
   const loop = createAnimationLoop({
     isActive: isAnimationActive,
     tick
   });
 
+  syncBehaviorSnapshot(behavior.setPaused(paused, performance.now()));
+  syncBehaviorSnapshot(behavior.setHidden(document.hidden, performance.now()));
   applyCanvasScale();
 
   await listen<typeof config>("picopet://config", (event) => {
@@ -64,26 +85,31 @@ export async function boot(): Promise<string> {
     }
 
     const startedAt = performance.now();
-    behavior.pointerDown(startedAt);
+    syncBehaviorSnapshot(behavior.pointerDown(startedAt));
     loop.sync();
 
-    const dragStartPosition = await appWindow.outerPosition();
-    const finalPosition = await readPositionAfterNativeDrag(appWindow);
-    const movedDistance = Math.hypot(finalPosition.x - dragStartPosition.x, finalPosition.y - dragStartPosition.y);
-    const finishedAt = performance.now();
+    try {
+      const dragStartPosition = await appWindow.outerPosition();
+      const finalPosition = await readPositionAfterNativeDrag(appWindow);
+      const movedDistance = Math.hypot(finalPosition.x - dragStartPosition.x, finalPosition.y - dragStartPosition.y);
+      const finishedAt = performance.now();
 
-    if (movedDistance > dragThresholdPx) {
-      config = await saveWindowPosition(finalPosition.x, finalPosition.y);
-      anchorPosition = {
-        x: config.window.x,
-        y: config.window.y
-      };
-      behavior.dragComplete(finishedAt);
-    } else {
-      behavior.shortPress(finishedAt);
+      if (movedDistance > dragThresholdPx) {
+        const nextConfig = await saveWindowPosition(finalPosition.x, finalPosition.y);
+        config = nextConfig;
+        anchorPosition = {
+          x: config.window.x,
+          y: config.window.y
+        };
+        syncBehaviorSnapshot(behavior.dragComplete(finishedAt));
+      } else {
+        syncBehaviorSnapshot(behavior.shortPress(finishedAt));
+      }
+    } catch {
+      syncBehaviorSnapshot(behavior.dragComplete(performance.now()));
+    } finally {
+      loop.sync();
     }
-
-    loop.sync();
   });
 
   const image = new Image();
@@ -100,7 +126,7 @@ export async function boot(): Promise<string> {
   image.src = idleImageUrl;
 
   function tick(now: number) {
-    const snapshot = behavior.update(now);
+    const snapshot = syncBehaviorSnapshot(behavior.update(now));
     const elapsedInState = now - snapshot.stateStartedAt;
     const effect = renderEffectForState(snapshot.state, elapsedInState, behaviorTiming.happyDurationMs);
     const effectiveFps = Math.max(1, Math.round(config.animation.idle_fps * effect.fpsMultiplier));
@@ -114,13 +140,20 @@ export async function boot(): Promise<string> {
         walkDirection
       );
       if (!walkMovePending) {
+        const currentWalkMoveToken = walkMoveToken;
         walkMovePending = true;
         void moveWindowTo(appWindow, walkPosition.x, walkPosition.y)
           .catch(() => {
-            behavior.dragComplete(performance.now());
+            if (currentWalkMoveToken === walkMoveToken) {
+              syncBehaviorSnapshot(behavior.dragComplete(performance.now()));
+            }
           })
           .finally(() => {
-            walkMovePending = false;
+            if (currentWalkMoveToken === walkMoveToken) {
+              walkMovePending = false;
+            } else if (behavior.snapshot().state !== "walk") {
+              void moveWindowTo(appWindow, anchorPosition.x, anchorPosition.y).catch(() => undefined);
+            }
           });
       }
       if (walkPosition.complete) {
@@ -138,12 +171,12 @@ export async function boot(): Promise<string> {
     const custom = event as CustomEvent<typeof config>;
     config = custom.detail;
     paused = config.animation.paused;
-    behavior.setConfig(config.behavior, performance.now());
-    behavior.setPaused(paused, performance.now());
     anchorPosition = {
       x: config.window.x,
       y: config.window.y
     };
+    syncBehaviorSnapshot(behavior.setConfig(config.behavior, performance.now()));
+    syncBehaviorSnapshot(behavior.setPaused(paused, performance.now()));
     applyCanvasScale();
     loop.sync();
   });
@@ -153,7 +186,7 @@ export async function boot(): Promise<string> {
       startedAt = performance.now();
       previousFrameAt = 0;
     }
-    behavior.setHidden(document.hidden, performance.now());
+    syncBehaviorSnapshot(behavior.setHidden(document.hidden, performance.now()));
     loop.sync();
   });
 

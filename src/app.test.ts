@@ -116,6 +116,39 @@ async function flushNativeDragFlow() {
   }
 }
 
+function mockImageLoading() {
+  const images: Array<{ onload: (() => void) | null; onerror: (() => void) | null }> = [];
+  vi.stubGlobal(
+    "Image",
+    class {
+      onload: (() => void) | null = null;
+      onerror: (() => void) | null = null;
+      src = "";
+
+      constructor() {
+        images.push(this);
+      }
+    }
+  );
+  return images;
+}
+
+function runLatestAnimationFrame(now: number) {
+  const latestCall = frameMocks.requestAnimationFrame.mock.calls[
+    frameMocks.requestAnimationFrame.mock.calls.length - 1
+  ] as unknown as [FrameRequestCallback] | undefined;
+  const callback = latestCall?.[0];
+  expect(callback).toBeTypeOf("function");
+  callback?.(now);
+}
+
+function expectLastWindowPosition(x: number, y: number) {
+  const latestCall = windowApiMocks.setPosition.mock.calls[
+    windowApiMocks.setPosition.mock.calls.length - 1
+  ] as unknown as [unknown] | undefined;
+  expect(latestCall?.[0]).toEqual(expect.objectContaining({ x, y }));
+}
+
 describe("boot", () => {
   it("marks the pet canvas as ready", async () => {
     mockCanvasContext();
@@ -255,6 +288,134 @@ describe("boot", () => {
     await flushNativeDragFlow();
 
     expect(commandMocks.saveWindowPosition).toHaveBeenCalledWith(1230, 680);
+  });
+
+  it("returns the native window to the saved anchor when a short-range walk completes", async () => {
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    mockCanvasContext();
+    const images = mockImageLoading();
+    document.body.innerHTML = '<canvas id="pet-canvas"></canvas>';
+    const { boot } = await import("./app");
+
+    await boot();
+    images[0].onload?.();
+    runLatestAnimationFrame(240000);
+    await flushNativeDragFlow();
+    runLatestAnimationFrame(243000);
+    await flushNativeDragFlow();
+    expectLastWindowPosition(1248, 680);
+
+    runLatestAnimationFrame(246000);
+    await flushNativeDragFlow();
+
+    expectLastWindowPosition(1200, 680);
+  });
+
+  it("returns the native window to the saved anchor when a walk is interrupted by pause", async () => {
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    mockCanvasContext();
+    const images = mockImageLoading();
+    document.body.innerHTML = '<canvas id="pet-canvas"></canvas>';
+    const { boot } = await import("./app");
+
+    await boot();
+    images[0].onload?.();
+    runLatestAnimationFrame(240000);
+    await flushNativeDragFlow();
+    runLatestAnimationFrame(243000);
+    await flushNativeDragFlow();
+    expectLastWindowPosition(1248, 680);
+    const listener = eventMocks.listen.mock.calls.find(([eventName]) => eventName === "picopet://config")?.[1];
+
+    listener?.({
+      event: "picopet://config",
+      id: 1,
+      payload: {
+        ...cloneDefaultConfig(),
+        animation: {
+          ...defaultConfig.animation,
+          paused: true
+        }
+      }
+    });
+    await flushNativeDragFlow();
+
+    expectLastWindowPosition(1200, 680);
+  });
+
+  it("recovers behavior state when native drag startup fails", async () => {
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    mockCanvasContext();
+    const images = mockImageLoading();
+    windowApiMocks.startDragging.mockRejectedValueOnce(new Error("native drag failed"));
+    document.body.innerHTML = '<canvas id="pet-canvas"></canvas>';
+    const { boot } = await import("./app");
+
+    await boot();
+    images[0].onload?.();
+    document.querySelector<HTMLCanvasElement>("#pet-canvas")?.dispatchEvent(
+      new MouseEvent("pointerdown", { button: 0 })
+    );
+    await flushNativeDragFlow();
+    runLatestAnimationFrame(240000);
+    await flushNativeDragFlow();
+
+    expectLastWindowPosition(1200, 680);
+  });
+
+  it("keeps the saved anchor and recovers behavior state when saving a drag position fails", async () => {
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    mockCanvasContext();
+    const images = mockImageLoading();
+    windowApiMocks.outerPosition
+      .mockResolvedValueOnce({ x: 1200, y: 680 })
+      .mockResolvedValueOnce({ x: 1230, y: 680 });
+    commandMocks.saveWindowPosition.mockRejectedValueOnce(new Error("save failed"));
+    document.body.innerHTML = '<canvas id="pet-canvas"></canvas>';
+    const { boot } = await import("./app");
+
+    await boot();
+    images[0].onload?.();
+    document.querySelector<HTMLCanvasElement>("#pet-canvas")?.dispatchEvent(
+      new MouseEvent("pointerdown", { button: 0 })
+    );
+    await flushNativeDragFlow();
+    runLatestAnimationFrame(240000);
+    await flushNativeDragFlow();
+
+    expect(commandMocks.saveWindowPosition).toHaveBeenCalledWith(1230, 680);
+    expectLastWindowPosition(1200, 680);
+  });
+
+  it("does not surface stale happy effects after a click that starts while paused", async () => {
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    const context = mockCanvasContext();
+    const images = mockImageLoading();
+    commandMocks.getAppConfig.mockResolvedValue({
+      ...cloneDefaultConfig(),
+      animation: {
+        ...defaultConfig.animation,
+        paused: true
+      }
+    });
+    document.body.innerHTML = '<canvas id="pet-canvas"></canvas>';
+    const { boot } = await import("./app");
+
+    await boot();
+    images[0].onload?.();
+    document.querySelector<HTMLCanvasElement>("#pet-canvas")?.dispatchEvent(
+      new MouseEvent("pointerdown", { button: 0 })
+    );
+    await flushNativeDragFlow();
+    const listener = eventMocks.listen.mock.calls.find(([eventName]) => eventName === "picopet://config")?.[1];
+    listener?.({
+      event: "picopet://config",
+      id: 1,
+      payload: cloneDefaultConfig()
+    });
+    runLatestAnimationFrame(700);
+
+    expect(context.scale).toHaveBeenLastCalledWith(1, 1);
   });
 
   it("does not run behavior interactions while behavior is disabled", async () => {
