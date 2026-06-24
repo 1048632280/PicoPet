@@ -64,6 +64,7 @@ For Windows release builds, include:
 
 ## Acceptance Records
 
+- Windows Beta portable data acceptance: `docs/qa/windows-beta-portable-data-acceptance-2026-06-24.md`
 - Windows Beta manual QA: `docs/qa/windows-beta-checklist.md`
 - Windows installer QA: `docs/qa/windows-installer-checklist.md`
 - Windows memory baseline: `docs/qa/memory-baseline.md`
