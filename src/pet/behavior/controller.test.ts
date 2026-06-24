@@ -28,6 +28,37 @@ describe("BehaviorController", () => {
     });
   });
 
+  it("protects internal state from external snapshot mutation", () => {
+    const behavior = createBehaviorController({
+      config: {
+        ...behaviorConfig
+      },
+      now: 1000
+    });
+
+    const directSnapshot = behavior.snapshot();
+    directSnapshot.state = "sleep";
+    directSnapshot.config.enabled = false;
+
+    expect(behavior.snapshot()).toMatchObject({
+      state: "idle",
+      config: {
+        enabled: true
+      }
+    });
+
+    const returnedSnapshot = behavior.pointerDown(1100);
+    returnedSnapshot.state = "sleep";
+    returnedSnapshot.config.sleep_after_idle_seconds = 1;
+
+    expect(behavior.snapshot()).toMatchObject({
+      state: "dragged",
+      config: {
+        sleep_after_idle_seconds: 900
+      }
+    });
+  });
+
   it("enters happy after a short press and returns to idle after the happy duration", () => {
     const behavior = controller();
 

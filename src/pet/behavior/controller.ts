@@ -18,6 +18,15 @@ export type BehaviorController = {
   setConfig(config: BehaviorConfig, now: number): BehaviorSnapshot;
 };
 
+function copySnapshot(snapshot: BehaviorSnapshot): BehaviorSnapshot {
+  return {
+    ...snapshot,
+    config: {
+      ...snapshot.config
+    }
+  };
+}
+
 export function createBehaviorController(options: BehaviorControllerOptions): BehaviorController {
   const timing = createQuietBehaviorTiming();
   let pressStartedWhileSleeping = false;
@@ -26,7 +35,9 @@ export function createBehaviorController(options: BehaviorControllerOptions): Be
     stateStartedAt: options.now,
     lastInteractionAt: options.now,
     nextWalkAt: nextQuietWalkAt(options.now),
-    config: options.config,
+    config: {
+      ...options.config
+    },
     paused: false,
     hidden: false
   };
@@ -62,14 +73,14 @@ export function createBehaviorController(options: BehaviorControllerOptions): Be
 
   return {
     snapshot() {
-      return snapshot;
+      return copySnapshot(snapshot);
     },
     update(now) {
       if (!autonomousEnabled()) {
         if (snapshot.state !== "dragged") {
           enter("idle", now);
         }
-        return snapshot;
+        return copySnapshot(snapshot);
       }
 
       if (snapshot.state === "happy" && now - snapshot.stateStartedAt >= timing.happyDurationMs) {
@@ -88,13 +99,13 @@ export function createBehaviorController(options: BehaviorControllerOptions): Be
         }
       }
 
-      return snapshot;
+      return copySnapshot(snapshot);
     },
     pointerDown(now) {
       pressStartedWhileSleeping = snapshot.state === "sleep";
       resetInteraction(now);
       enter("dragged", now);
-      return snapshot;
+      return copySnapshot(snapshot);
     },
     shortPress(now) {
       const wasSleeping = snapshot.state === "sleep" || pressStartedWhileSleeping;
@@ -105,13 +116,13 @@ export function createBehaviorController(options: BehaviorControllerOptions): Be
       } else {
         enter("happy", now);
       }
-      return snapshot;
+      return copySnapshot(snapshot);
     },
     dragComplete(now) {
       pressStartedWhileSleeping = false;
       resetInteraction(now);
       enter("idle", now);
-      return snapshot;
+      return copySnapshot(snapshot);
     },
     setPaused(paused, now) {
       snapshot = {
@@ -121,7 +132,7 @@ export function createBehaviorController(options: BehaviorControllerOptions): Be
       if (paused && snapshot.state !== "dragged") {
         enter("idle", now);
       }
-      return snapshot;
+      return copySnapshot(snapshot);
     },
     setHidden(hidden, now) {
       snapshot = {
@@ -131,17 +142,19 @@ export function createBehaviorController(options: BehaviorControllerOptions): Be
       if (hidden && snapshot.state !== "dragged") {
         enter("idle", now);
       }
-      return snapshot;
+      return copySnapshot(snapshot);
     },
     setConfig(config, now) {
       snapshot = {
         ...snapshot,
-        config
+        config: {
+          ...config
+        }
       };
       if (!config.enabled && snapshot.state !== "dragged") {
         enter("idle", now);
       }
-      return snapshot;
+      return copySnapshot(snapshot);
     }
   };
 }
