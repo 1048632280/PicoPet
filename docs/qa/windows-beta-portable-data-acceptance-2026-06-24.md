@@ -44,11 +44,13 @@ Installer QA used a user-writable test directory:
 | Overwrite install | Passed | Running the installer again exited 0 and preserved the existing `data/config.json` hash |
 | Uninstall | Passed | Silent uninstall exited 0, removed installed program files, and left `data/` in place for Beta |
 
-## Remaining Manual Checks
+## Manual UI Acceptance
 
-- Click tray `打开配置目录` and confirm it opens `PicoPet/data/`.
-- Invoke diagnostics in a running app session and confirm `config_dir`, `config_file`, and `log_file` all point under `PicoPet/data/`.
+| Area | Result | Notes |
+| --- | --- | --- |
+| Tray `打开配置目录` | Passed | User confirmed it opens `PicoPet/data/` on 2026-06-24 |
+| Diagnostics paths | Passed | User confirmed `config_dir`, `config_file`, and `log_file` point under `PicoPet/data/` on 2026-06-24 |
 
 ## Result
 
-Portable data directory acceptance passed for the automated and scriptable Windows Beta checks. The remaining items require manual UI interaction before final Beta release sign-off.
+Portable data directory acceptance passed for the automated, scriptable, and manual UI Windows Beta checks.
