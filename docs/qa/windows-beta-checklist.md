@@ -19,6 +19,12 @@
 - [ ] Relaunch and confirm the position is restored.
 - [ ] Close the window through OS close handling if available and confirm position is restored.
 - [ ] Confirm `data/config.json` appears beside `picopet.exe` after first launch.
+- [ ] Confirm `data/config.json` contains a `behavior` section after first launch.
+- [ ] Confirm a short click triggers a visible happy/bounce response.
+- [ ] Confirm a drag still saves and restores the final position after relaunch.
+- [ ] Confirm the pet occasionally performs only a small short-range walk near its saved position.
+- [ ] Set `behavior.enabled` to `false`, relaunch, and confirm autonomous walk/sleep behavior stops.
+- [ ] Set `behavior.sleep_after_idle_seconds` to `60`, relaunch, and confirm sleep can trigger after idle time.
 - [ ] Confirm `data/picopet.log` appears after startup.
 - [ ] Confirm `data/EBWebView/` appears after WebView startup.
 - [ ] Confirm no new `%APPDATA%/com.picopet.*` or `%LOCALAPPDATA%/com.picopet.*` directory is created.

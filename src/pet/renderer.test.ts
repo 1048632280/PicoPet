@@ -16,8 +16,19 @@ function createContextMock() {
     beginPath: vi.fn(),
     arc: vi.fn(),
     fill: vi.fn(),
-    fillStyle: ""
-  } as unknown as CanvasRenderingContext2D & { drawImage: ReturnType<typeof vi.fn> };
+    save: vi.fn(),
+    restore: vi.fn(),
+    translate: vi.fn(),
+    scale: vi.fn(),
+    fillStyle: "",
+    globalAlpha: 1
+  } as unknown as CanvasRenderingContext2D & {
+    drawImage: ReturnType<typeof vi.fn>;
+    save: ReturnType<typeof vi.fn>;
+    restore: ReturnType<typeof vi.fn>;
+    translate: ReturnType<typeof vi.fn>;
+    scale: ReturnType<typeof vi.fn>;
+  };
 }
 
 describe("PetRenderer", () => {
@@ -47,5 +58,30 @@ describe("PetRenderer", () => {
     renderer.renderFrame(99);
 
     expect(context.drawImage).not.toHaveBeenCalled();
+  });
+
+  it("renders a frame with a render effect without resizing the canvas", () => {
+    const context = createContextMock();
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(context);
+    const canvas = createCanvas();
+    const renderer = new PetRenderer(canvas, atlas);
+    const image = {} as HTMLImageElement;
+
+    renderer.setImage(image);
+    renderer.renderFrame(0, {
+      scale: 1.08,
+      offsetX: 2,
+      offsetY: -4,
+      alpha: 0.9,
+      fpsMultiplier: 1.5
+    });
+
+    expect(canvas.width).toBe(128);
+    expect(canvas.height).toBe(128);
+    expect(context.save).toHaveBeenCalledTimes(1);
+    expect(context.translate).toHaveBeenCalledWith(66, 60);
+    expect(context.scale).toHaveBeenCalledWith(1.08, 1.08);
+    expect(context.drawImage).toHaveBeenCalledWith(image, 0, 0, 128, 128, -64, -64, 128, 128);
+    expect(context.restore).toHaveBeenCalledTimes(1);
   });
 });

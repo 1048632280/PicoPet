@@ -69,6 +69,21 @@ PicoPet/
 
 `uninstall.exe` is present only in the NSIS installer build. The portable zip contains `PicoPet/picopet.exe` and `PicoPet/data/`; `config.json`, `picopet.log`, and `EBWebView/` are created on first launch.
 
+Behavior parameters are currently configured through `data/config.json`:
+
+```json
+{
+  "behavior": {
+    "enabled": true,
+    "preset": "quiet",
+    "walk_mode": "short_range",
+    "sleep_after_idle_seconds": 900
+  }
+}
+```
+
+`v0.2.0` implements the `quiet` preset and `short_range` walk mode. The future settings window is planned for `v0.3`.
+
 ## QA
 
 ```powershell

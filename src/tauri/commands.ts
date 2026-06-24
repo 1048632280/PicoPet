@@ -1,5 +1,12 @@
 import { invoke } from "@tauri-apps/api/core";
 
+export type BehaviorConfig = {
+  enabled: boolean;
+  preset: "quiet" | string;
+  walk_mode: "short_range" | string;
+  sleep_after_idle_seconds: number;
+};
+
 export type AppConfig = {
   window: {
     x: number;
@@ -16,6 +23,7 @@ export type AppConfig = {
   startup: {
     launch_on_login: boolean;
   };
+  behavior: BehaviorConfig;
 };
 
 export type DiagnosticsInfo = {
