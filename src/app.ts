@@ -6,9 +6,13 @@ import idleImageUrl from "./assets/pet/pico_idle.png?url";
 import { frameIndexAt, shouldRenderFrame } from "./pet/animationClock";
 import { createAnimationLoop } from "./pet/animationLoop";
 import { normalizeAtlasManifest } from "./pet/atlas";
+import { createBehaviorController } from "./pet/behavior/controller";
+import { renderEffectForState } from "./pet/behavior/effects";
+import { shortRangeWalkPosition } from "./pet/behavior/motion";
+import { createQuietBehaviorTiming } from "./pet/behavior/timing";
 import { PetRenderer } from "./pet/renderer";
 import { getAppConfig, saveWindowPosition } from "./tauri/commands";
-import { persistPositionAfterDrag } from "./tauri/window";
+import { moveWindowTo, readPositionAfterNativeDrag } from "./tauri/window";
 
 export async function boot(): Promise<string> {
   const canvas = document.querySelector<HTMLCanvasElement>("#pet-canvas");
@@ -24,6 +28,18 @@ export async function boot(): Promise<string> {
   let previousFrameAt = 0;
   let paused = config.animation.paused;
   let imageReady = false;
+  const behaviorTiming = createQuietBehaviorTiming();
+  const behavior = createBehaviorController({
+    config: config.behavior,
+    now: performance.now()
+  });
+  let anchorPosition = {
+    x: config.window.x,
+    y: config.window.y
+  };
+  let walkDirection: 1 | -1 = 1;
+  let walkMovePending = false;
+  const dragThresholdPx = 6;
 
   const applyCanvasScale = () => {
     canvas.style.width = `${atlas.frame_width * config.window.scale}px`;
@@ -46,9 +62,27 @@ export async function boot(): Promise<string> {
     if (event.button !== 0 || config.window.click_through) {
       return;
     }
-    await persistPositionAfterDrag(appWindow, async (x, y) => {
-      config = await saveWindowPosition(x, y);
-    });
+
+    const startedAt = performance.now();
+    behavior.pointerDown(startedAt);
+    loop.sync();
+
+    const finalPosition = await readPositionAfterNativeDrag(appWindow);
+    const movedDistance = Math.hypot(finalPosition.x - anchorPosition.x, finalPosition.y - anchorPosition.y);
+    const finishedAt = performance.now();
+
+    if (movedDistance > dragThresholdPx) {
+      config = await saveWindowPosition(finalPosition.x, finalPosition.y);
+      anchorPosition = {
+        x: config.window.x,
+        y: config.window.y
+      };
+      behavior.dragComplete(finishedAt);
+    } else {
+      behavior.shortPress(finishedAt);
+    }
+
+    loop.sync();
   });
 
   const image = new Image();
@@ -65,9 +99,37 @@ export async function boot(): Promise<string> {
   image.src = idleImageUrl;
 
   function tick(now: number) {
-    if (!paused && !document.hidden && shouldRenderFrame(previousFrameAt, now, config.animation.idle_fps)) {
+    const snapshot = behavior.update(now);
+    const elapsedInState = now - snapshot.stateStartedAt;
+    const effect = renderEffectForState(snapshot.state, elapsedInState, behaviorTiming.happyDurationMs);
+    const effectiveFps = Math.max(1, Math.round(config.animation.idle_fps * effect.fpsMultiplier));
+
+    if (snapshot.state === "walk") {
+      const walkPosition = shortRangeWalkPosition(
+        anchorPosition,
+        elapsedInState,
+        behaviorTiming.walkDurationMs,
+        48,
+        walkDirection
+      );
+      if (!walkMovePending) {
+        walkMovePending = true;
+        void moveWindowTo(appWindow, walkPosition.x, walkPosition.y)
+          .catch(() => {
+            behavior.dragComplete(performance.now());
+          })
+          .finally(() => {
+            walkMovePending = false;
+          });
+      }
+      if (walkPosition.complete) {
+        walkDirection = walkDirection === 1 ? -1 : 1;
+      }
+    }
+
+    if (!paused && !document.hidden && shouldRenderFrame(previousFrameAt, now, effectiveFps)) {
       previousFrameAt = now;
-      renderer.renderFrame(frameIndexAt(now - startedAt, config.animation.idle_fps, atlas.frames));
+      renderer.renderFrame(frameIndexAt(now - startedAt, effectiveFps, atlas.frames), effect);
     }
   }
 
@@ -75,6 +137,12 @@ export async function boot(): Promise<string> {
     const custom = event as CustomEvent<typeof config>;
     config = custom.detail;
     paused = config.animation.paused;
+    behavior.setConfig(config.behavior, performance.now());
+    behavior.setPaused(paused, performance.now());
+    anchorPosition = {
+      x: config.window.x,
+      y: config.window.y
+    };
     applyCanvasScale();
     loop.sync();
   });
@@ -84,6 +152,7 @@ export async function boot(): Promise<string> {
       startedAt = performance.now();
       previousFrameAt = 0;
     }
+    behavior.setHidden(document.hidden, performance.now());
     loop.sync();
   });
 

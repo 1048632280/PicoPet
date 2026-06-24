@@ -10,6 +10,12 @@ const eventMocks = vi.hoisted(() => ({
   listen: vi.fn()
 }));
 
+const windowApiMocks = vi.hoisted(() => ({
+  startDragging: vi.fn(async () => undefined),
+  outerPosition: vi.fn(async () => ({ x: 1200, y: 680 })),
+  setPosition: vi.fn(async () => undefined)
+}));
+
 const frameMocks = vi.hoisted(() => ({
   requestAnimationFrame: vi.fn(() => 1),
   cancelAnimationFrame: vi.fn()
@@ -40,11 +46,7 @@ const defaultConfig = {
 } satisfies AppConfig;
 
 vi.mock("@tauri-apps/api/window", () => ({
-  getCurrentWindow: () => ({
-    startDragging: vi.fn(async () => undefined),
-    outerPosition: vi.fn(async () => ({ x: 1200, y: 680 })),
-    setPosition: vi.fn(async () => undefined)
-  }),
+  getCurrentWindow: () => windowApiMocks,
   PhysicalPosition: class PhysicalPosition {
     constructor(
       public readonly x: number,
@@ -85,6 +87,10 @@ beforeEach(() => {
   vi.stubGlobal("cancelAnimationFrame", frameMocks.cancelAnimationFrame);
   frameMocks.requestAnimationFrame.mockClear();
   frameMocks.cancelAnimationFrame.mockClear();
+  windowApiMocks.startDragging.mockClear();
+  windowApiMocks.outerPosition.mockReset();
+  windowApiMocks.outerPosition.mockResolvedValue({ x: 1200, y: 680 });
+  windowApiMocks.setPosition.mockClear();
 });
 
 function mockCanvasContext(): ContextMock {
@@ -102,6 +108,12 @@ function mockCanvasContext(): ContextMock {
   } as unknown as ContextMock;
   vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(context);
   return context;
+}
+
+async function flushNativeDragFlow() {
+  await Promise.resolve();
+  await Promise.resolve();
+  await Promise.resolve();
 }
 
 describe("boot", () => {
@@ -184,6 +196,65 @@ describe("boot", () => {
 
     expect(commandMocks.getAppConfig).toHaveBeenCalledTimes(1);
     expect(commandMocks.getAppConfig.mock.results[0].type).toBe("return");
+  });
+
+  it("treats an unchanged native drag position as a short press without saving position", async () => {
+    mockCanvasContext();
+    document.body.innerHTML = '<canvas id="pet-canvas"></canvas>';
+    const { boot } = await import("./app");
+
+    await boot();
+    document.querySelector<HTMLCanvasElement>("#pet-canvas")?.dispatchEvent(
+      new MouseEvent("pointerdown", { button: 0 })
+    );
+    await flushNativeDragFlow();
+
+    expect(windowApiMocks.startDragging).toHaveBeenCalledTimes(1);
+    expect(commandMocks.saveWindowPosition).not.toHaveBeenCalled();
+  });
+
+  it("saves position when native drag changes the outer position past the drag threshold", async () => {
+    mockCanvasContext();
+    windowApiMocks.outerPosition.mockResolvedValue({ x: 1230, y: 680 });
+    commandMocks.saveWindowPosition.mockResolvedValue({
+      ...cloneDefaultConfig(),
+      window: {
+        ...defaultConfig.window,
+        x: 1230,
+        y: 680
+      }
+    });
+    document.body.innerHTML = '<canvas id="pet-canvas"></canvas>';
+    const { boot } = await import("./app");
+
+    await boot();
+    document.querySelector<HTMLCanvasElement>("#pet-canvas")?.dispatchEvent(
+      new MouseEvent("pointerdown", { button: 0 })
+    );
+    await flushNativeDragFlow();
+
+    expect(commandMocks.saveWindowPosition).toHaveBeenCalledWith(1230, 680);
+  });
+
+  it("does not run behavior interactions while behavior is disabled", async () => {
+    mockCanvasContext();
+    commandMocks.getAppConfig.mockResolvedValue({
+      ...cloneDefaultConfig(),
+      behavior: {
+        ...defaultConfig.behavior,
+        enabled: false
+      }
+    });
+    document.body.innerHTML = '<canvas id="pet-canvas"></canvas>';
+    const { boot } = await import("./app");
+
+    await boot();
+    document.querySelector<HTMLCanvasElement>("#pet-canvas")?.dispatchEvent(
+      new MouseEvent("pointerdown", { button: 0 })
+    );
+    await flushNativeDragFlow();
+
+    expect(windowApiMocks.startDragging).toHaveBeenCalledTimes(1);
   });
 
   it("applies tray config scale changes to the canvas size", async () => {
