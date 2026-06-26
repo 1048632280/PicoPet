@@ -1,5 +1,6 @@
 import { describe, expect, it } from "vitest";
 import { shortRangeWalkPosition } from "./motion";
+import { createBehaviorProfile } from "./timing";
 
 describe("shortRangeWalkPosition", () => {
   it("starts and ends at the anchor", () => {
@@ -35,5 +36,20 @@ describe("shortRangeWalkPosition", () => {
 
     expect(midpoint.x).toBe(52);
     expect(midpoint.offsetX).toBe(-48);
+  });
+
+  it("uses profile distance for short-range walk", () => {
+    const anchor = { x: 100, y: 200 };
+    const lively = createBehaviorProfile("lively");
+    const midpoint = shortRangeWalkPosition(
+      anchor,
+      lively.timing.walkDurationMs / 2,
+      lively.timing.walkDurationMs,
+      lively.walkDistancePx,
+      1
+    );
+
+    expect(midpoint.x).toBe(172);
+    expect(midpoint.offsetX).toBe(72);
   });
 });

@@ -1,13 +1,72 @@
-import type { BehaviorTiming } from "./types";
+import type { BehaviorPreset, BehaviorProfile, BehaviorTiming } from "./types";
 
-export function createQuietBehaviorTiming(): BehaviorTiming {
-  return {
+const QUIET_PROFILE: BehaviorProfile = {
+  preset: "quiet",
+  timing: {
     happyDurationMs: 1400,
     walkDurationMs: 6000,
     walkIntervalMs: 240000
-  };
+  },
+  walkDistancePx: 40,
+  happyScaleBoost: 0.08,
+  happyOffsetYPx: 6,
+  happyFpsMultiplier: 1.5,
+  walkFpsMultiplier: 1.2
+};
+
+const NORMAL_PROFILE: BehaviorProfile = {
+  preset: "normal",
+  timing: {
+    happyDurationMs: 1600,
+    walkDurationMs: 7000,
+    walkIntervalMs: 150000
+  },
+  walkDistancePx: 56,
+  happyScaleBoost: 0.1,
+  happyOffsetYPx: 8,
+  happyFpsMultiplier: 1.65,
+  walkFpsMultiplier: 1.3
+};
+
+const LIVELY_PROFILE: BehaviorProfile = {
+  preset: "lively",
+  timing: {
+    happyDurationMs: 1800,
+    walkDurationMs: 8000,
+    walkIntervalMs: 90000
+  },
+  walkDistancePx: 72,
+  happyScaleBoost: 0.12,
+  happyOffsetYPx: 10,
+  happyFpsMultiplier: 1.8,
+  walkFpsMultiplier: 1.45
+};
+
+const PROFILES: Record<BehaviorPreset, BehaviorProfile> = {
+  quiet: QUIET_PROFILE,
+  normal: NORMAL_PROFILE,
+  lively: LIVELY_PROFILE
+};
+
+export function normalizeBehaviorPreset(preset: string): BehaviorPreset {
+  if (preset === "normal" || preset === "lively") {
+    return preset;
+  }
+  return "quiet";
+}
+
+export function createBehaviorProfile(preset: string): BehaviorProfile {
+  return PROFILES[normalizeBehaviorPreset(preset)];
+}
+
+export function createQuietBehaviorTiming(): BehaviorTiming {
+  return createBehaviorProfile("quiet").timing;
+}
+
+export function nextWalkAt(now: number, preset: string): number {
+  return now + createBehaviorProfile(preset).timing.walkIntervalMs;
 }
 
 export function nextQuietWalkAt(now: number): number {
-  return now + createQuietBehaviorTiming().walkIntervalMs;
+  return nextWalkAt(now, "quiet");
 }

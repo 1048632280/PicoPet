@@ -1,4 +1,4 @@
-import { createQuietBehaviorTiming, nextQuietWalkAt } from "./timing";
+import { createBehaviorProfile, nextWalkAt } from "./timing";
 import type { BehaviorSnapshot } from "./types";
 import type { BehaviorConfig } from "../../tauri/commands";
 
@@ -28,19 +28,26 @@ function copySnapshot(snapshot: BehaviorSnapshot): BehaviorSnapshot {
 }
 
 export function createBehaviorController(options: BehaviorControllerOptions): BehaviorController {
-  const timing = createQuietBehaviorTiming();
   let pressStartedWhileSleeping = false;
   let snapshot: BehaviorSnapshot = {
     state: "idle",
     stateStartedAt: options.now,
     lastInteractionAt: options.now,
-    nextWalkAt: nextQuietWalkAt(options.now),
+    nextWalkAt: nextWalkAt(options.now, options.config.preset),
     config: {
       ...options.config
     },
     paused: false,
     hidden: false
   };
+
+  function profile() {
+    return createBehaviorProfile(snapshot.config.preset);
+  }
+
+  function scheduleNextWalk(now: number) {
+    return nextWalkAt(now, snapshot.config.preset);
+  }
 
   function enter(state: BehaviorSnapshot["state"], now: number) {
     snapshot = {
@@ -54,7 +61,7 @@ export function createBehaviorController(options: BehaviorControllerOptions): Be
     snapshot = {
       ...snapshot,
       lastInteractionAt: now,
-      nextWalkAt: nextQuietWalkAt(now)
+      nextWalkAt: scheduleNextWalk(now)
     };
   }
 
@@ -67,7 +74,7 @@ export function createBehaviorController(options: BehaviorControllerOptions): Be
       ...snapshot,
       state: "idle",
       stateStartedAt: now,
-      nextWalkAt: nextQuietWalkAt(now)
+      nextWalkAt: scheduleNextWalk(now)
     };
   }
 
@@ -83,11 +90,11 @@ export function createBehaviorController(options: BehaviorControllerOptions): Be
         return copySnapshot(snapshot);
       }
 
-      if (snapshot.state === "happy" && now - snapshot.stateStartedAt >= timing.happyDurationMs) {
+      if (snapshot.state === "happy" && now - snapshot.stateStartedAt >= profile().timing.happyDurationMs) {
         enter("idle", now);
       }
 
-      if (snapshot.state === "walk" && now - snapshot.stateStartedAt >= timing.walkDurationMs) {
+      if (snapshot.state === "walk" && now - snapshot.stateStartedAt >= profile().timing.walkDurationMs) {
         leaveWalk(now);
       }
 
@@ -149,7 +156,8 @@ export function createBehaviorController(options: BehaviorControllerOptions): Be
         ...snapshot,
         config: {
           ...config
-        }
+        },
+        nextWalkAt: nextWalkAt(now, config.preset)
       };
       if (!config.enabled && snapshot.state !== "dragged") {
         enter("idle", now);

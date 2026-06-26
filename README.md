@@ -51,7 +51,7 @@ pnpm portable:windows
 ```
 
 Debug bundles are written under `src-tauri/target/debug/bundle/`. Release bundles are written under `src-tauri/target/release/bundle/`.
-The Windows portable zip is written to `src-tauri/target/release/bundle/portable/PicoPet_0.2.0_x64-portable.zip`.
+The Windows portable zip is written to `src-tauri/target/release/bundle/portable/PicoPet_0.2.1_x64-portable.zip`.
 
 ## Local Data
 
@@ -82,7 +82,13 @@ Behavior parameters are currently configured through `data/config.json`:
 }
 ```
 
-`v0.2.0` implements the `quiet` preset and `short_range` walk mode. The future settings window is planned for `v0.3`.
+Supported behavior values:
+
+- `preset`: `quiet`, `normal`, `lively`
+- `walk_mode`: `stationary`, `short_range`
+- `sleep_after_idle_seconds`: `60` to `86400`
+
+`v0.2.1` supports `quiet`, `normal`, and `lively` behavior presets, plus `stationary` and `short_range` walk modes. `roaming` remains planned for a later behavior release. The future settings window is planned for `v0.3`.
 
 ## QA
 
@@ -92,7 +98,7 @@ pnpm portable:windows
 pnpm memory:windows
 ```
 
-Use `docs/qa/windows-beta-checklist.md` for manual Beta runtime and portable zip verification, `docs/qa/windows-installer-checklist.md` for installer QA, and `docs/qa/memory-baseline.md` for memory records before tagging a Beta build.
+Use `docs/qa/windows-v0.2.1-checklist.md` as the primary v0.2.1 manual QA checklist before tagging a Beta build; use `docs/qa/windows-installer-checklist.md` for installer-specific QA and `docs/qa/memory-baseline.md` for memory records.
 `docs/qa/windows-alpha-checklist.md` is historical Alpha documentation only and is not part of active Beta release QA.
 
 ## Scope

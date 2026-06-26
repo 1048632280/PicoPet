@@ -9,7 +9,7 @@ import { normalizeAtlasManifest } from "./pet/atlas";
 import { createBehaviorController } from "./pet/behavior/controller";
 import { renderEffectForState } from "./pet/behavior/effects";
 import { shortRangeWalkPosition } from "./pet/behavior/motion";
-import { createQuietBehaviorTiming } from "./pet/behavior/timing";
+import { createBehaviorProfile } from "./pet/behavior/timing";
 import type { BehaviorSnapshot } from "./pet/behavior/types";
 import { PetRenderer } from "./pet/renderer";
 import { getAppConfig, saveWindowPosition } from "./tauri/commands";
@@ -29,7 +29,6 @@ export async function boot(): Promise<string> {
   let previousFrameAt = 0;
   let paused = config.animation.paused;
   let imageReady = false;
-  const behaviorTiming = createQuietBehaviorTiming();
   const behavior = createBehaviorController({
     config: config.behavior,
     now: performance.now()
@@ -128,15 +127,16 @@ export async function boot(): Promise<string> {
   function tick(now: number) {
     const snapshot = syncBehaviorSnapshot(behavior.update(now));
     const elapsedInState = now - snapshot.stateStartedAt;
-    const effect = renderEffectForState(snapshot.state, elapsedInState, behaviorTiming.happyDurationMs);
+    const profile = createBehaviorProfile(snapshot.config.preset);
+    const effect = renderEffectForState(snapshot.state, elapsedInState, profile);
     const effectiveFps = Math.max(1, Math.round(config.animation.idle_fps * effect.fpsMultiplier));
 
     if (snapshot.state === "walk") {
       const walkPosition = shortRangeWalkPosition(
         anchorPosition,
         elapsedInState,
-        behaviorTiming.walkDurationMs,
-        48,
+        profile.timing.walkDurationMs,
+        profile.walkDistancePx,
         walkDirection
       );
       if (!walkMovePending) {

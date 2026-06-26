@@ -303,7 +303,7 @@ describe("boot", () => {
     await flushNativeDragFlow();
     runLatestAnimationFrame(243000);
     await flushNativeDragFlow();
-    expectLastWindowPosition(1248, 680);
+    expectLastWindowPosition(1240, 680);
 
     runLatestAnimationFrame(246000);
     await flushNativeDragFlow();
@@ -324,7 +324,7 @@ describe("boot", () => {
     await flushNativeDragFlow();
     runLatestAnimationFrame(243000);
     await flushNativeDragFlow();
-    expectLastWindowPosition(1248, 680);
+    expectLastWindowPosition(1240, 680);
     const listener = eventMocks.listen.mock.calls.find(([eventName]) => eventName === "picopet://config")?.[1];
 
     listener?.({
@@ -341,6 +341,52 @@ describe("boot", () => {
     await flushNativeDragFlow();
 
     expectLastWindowPosition(1200, 680);
+  });
+
+  it("does not move the window autonomously when walk mode is stationary", async () => {
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    mockCanvasContext();
+    const images = mockImageLoading();
+    commandMocks.getAppConfig.mockResolvedValue({
+      ...cloneDefaultConfig(),
+      behavior: {
+        ...defaultConfig.behavior,
+        walk_mode: "stationary"
+      }
+    });
+    document.body.innerHTML = '<canvas id="pet-canvas"></canvas>';
+    const { boot } = await import("./app");
+
+    await boot();
+    images[0].onload?.();
+    runLatestAnimationFrame(240000);
+    await flushNativeDragFlow();
+
+    expect(windowApiMocks.setPosition).not.toHaveBeenCalled();
+  });
+
+  it("uses lively profile distance for autonomous short-range walk", async () => {
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    mockCanvasContext();
+    const images = mockImageLoading();
+    commandMocks.getAppConfig.mockResolvedValue({
+      ...cloneDefaultConfig(),
+      behavior: {
+        ...defaultConfig.behavior,
+        preset: "lively"
+      }
+    });
+    document.body.innerHTML = '<canvas id="pet-canvas"></canvas>';
+    const { boot } = await import("./app");
+
+    await boot();
+    images[0].onload?.();
+    runLatestAnimationFrame(90000);
+    await flushNativeDragFlow();
+    runLatestAnimationFrame(94000);
+    await flushNativeDragFlow();
+
+    expectLastWindowPosition(1272, 680);
   });
 
   it("recovers behavior state when native drag startup fails", async () => {

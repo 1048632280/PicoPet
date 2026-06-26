@@ -28,10 +28,10 @@ pnpm memory:windows -- -OutputJson docs/qa/memory-baseline.latest.json
 
 Run every item in:
 
-- `docs/qa/windows-beta-checklist.md`
-- `docs/qa/windows-installer-checklist.md`
+- `docs/qa/windows-v0.2.1-checklist.md`
+- `docs/qa/windows-installer-checklist.md` for installer-specific QA
 
-Confirm the Beta checklist covers runtime behavior and portable zip QA. Confirm the installer checklist covers clean install, overwrite install, and uninstall behavior with `PicoPet/data/`.
+Confirm the v0.2.1 checklist covers runtime behavior and portable zip QA. Confirm the installer checklist covers clean install, overwrite install, and uninstall behavior with `PicoPet/data/`.
 `docs/qa/windows-alpha-checklist.md` is retained as historical Alpha documentation only and is not part of active Beta release QA.
 
 ## Memory Baseline
@@ -49,8 +49,8 @@ pnpm memory:windows -- -OutputJson docs/qa/memory-baseline.latest.json
 ## Artifacts
 
 - Release executable: `src-tauri/target/release/picopet.exe`
-- NSIS installer: `src-tauri/target/release/bundle/nsis/PicoPet_0.2.0_x64-setup.exe`
-- Portable zip: `src-tauri/target/release/bundle/portable/PicoPet_0.2.0_x64-portable.zip`
+- NSIS installer: `src-tauri/target/release/bundle/nsis/PicoPet_0.2.1_x64-setup.exe`
+- Portable zip: `src-tauri/target/release/bundle/portable/PicoPet_0.2.1_x64-portable.zip`
 
 ## Release Notes
 
@@ -65,7 +65,7 @@ For Windows release builds, include:
 ## Acceptance Records
 
 - Windows Beta portable data acceptance: `docs/qa/windows-beta-portable-data-acceptance-2026-06-24.md`
-- Windows Beta manual QA: `docs/qa/windows-beta-checklist.md`
+- Windows v0.2.1 manual QA: `docs/qa/windows-v0.2.1-checklist.md`
 - Windows installer QA: `docs/qa/windows-installer-checklist.md`
 - Windows memory baseline: `docs/qa/memory-baseline.md`
 - Latest memory JSON artifact: `docs/qa/memory-baseline.latest.json`

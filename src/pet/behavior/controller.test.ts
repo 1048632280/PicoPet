@@ -16,6 +16,20 @@ function controller(now = 0) {
   });
 }
 
+function config(overrides: Partial<BehaviorConfig> = {}): BehaviorConfig {
+  return {
+    ...behaviorConfig,
+    ...overrides
+  };
+}
+
+function controllerWithConfig(configOverrides: Partial<BehaviorConfig>, now = 0) {
+  return createBehaviorController({
+    config: config(configOverrides),
+    now
+  });
+}
+
 describe("BehaviorController", () => {
   it("starts in idle and schedules a quiet walk", () => {
     const behavior = controller(1000);
@@ -113,6 +127,44 @@ describe("BehaviorController", () => {
     const behavior = controller(0);
 
     behavior.update(240000);
+
+    expect(behavior.snapshot().state).toBe("walk");
+  });
+
+  it("does not start autonomous walk when walk mode is stationary", () => {
+    const behavior = controllerWithConfig({
+      walk_mode: "stationary"
+    });
+
+    behavior.update(240000);
+
+    expect(behavior.snapshot().state).toBe("idle");
+  });
+
+  it("uses normal preset timing for the next walk and happy duration", () => {
+    const behavior = controllerWithConfig({
+      preset: "normal",
+      sleep_after_idle_seconds: 900
+    });
+
+    expect(behavior.snapshot().nextWalkAt).toBe(150000);
+
+    behavior.pointerDown(100);
+    behavior.shortPress(200);
+    behavior.update(1700);
+    expect(behavior.snapshot().state).toBe("happy");
+
+    behavior.update(1801);
+    expect(behavior.snapshot().state).toBe("idle");
+  });
+
+  it("uses lively preset timing for the next walk", () => {
+    const behavior = controllerWithConfig({
+      preset: "lively"
+    });
+
+    expect(behavior.snapshot().nextWalkAt).toBe(90000);
+    behavior.update(90000);
 
     expect(behavior.snapshot().state).toBe("walk");
   });

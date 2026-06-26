@@ -33,8 +33,8 @@ Invoke-Step "windows artifact validation" { pnpm artifact:windows }
 
 if (-not $SkipManualReminder) {
   Write-Host "Manual QA still required:"
-  Write-Host "- docs/qa/windows-beta-checklist.md"
-  Write-Host "- docs/qa/windows-installer-checklist.md"
+  Write-Host "- docs/qa/windows-v0.2.1-checklist.md"
+  Write-Host "- docs/qa/windows-installer-checklist.md (installer-specific)"
   Write-Host "- docs/qa/memory-baseline.md"
 }
 

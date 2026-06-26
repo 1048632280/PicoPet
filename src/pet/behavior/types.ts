@@ -25,6 +25,16 @@ export type BehaviorTiming = {
   walkIntervalMs: number;
 };
 
+export type BehaviorProfile = {
+  preset: BehaviorPreset;
+  timing: BehaviorTiming;
+  walkDistancePx: number;
+  happyScaleBoost: number;
+  happyOffsetYPx: number;
+  happyFpsMultiplier: number;
+  walkFpsMultiplier: number;
+};
+
 export type RenderEffect = {
   scale: number;
   offsetX: number;

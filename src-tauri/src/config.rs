@@ -11,7 +11,9 @@ pub const SCALE_STEP: f64 = 0.25;
 const DEFAULT_IDLE_FPS: u16 = 12;
 const DEFAULT_INTERACTIVE_FPS: u16 = 30;
 const DEFAULT_BEHAVIOR_PRESET: &str = "quiet";
+const SUPPORTED_BEHAVIOR_PRESETS: [&str; 3] = ["quiet", "normal", "lively"];
 const DEFAULT_WALK_MODE: &str = "short_range";
+const SUPPORTED_WALK_MODES: [&str; 2] = ["stationary", "short_range"];
 const DEFAULT_SLEEP_AFTER_IDLE_SECONDS: u32 = 900;
 const MIN_SLEEP_AFTER_IDLE_SECONDS: u32 = 60;
 const MAX_SLEEP_AFTER_IDLE_SECONDS: u32 = 86_400;
@@ -51,10 +53,10 @@ impl AppConfig {
         {
             self.animation.interactive_fps = DEFAULT_INTERACTIVE_FPS;
         }
-        if self.behavior.preset != DEFAULT_BEHAVIOR_PRESET {
+        if !SUPPORTED_BEHAVIOR_PRESETS.contains(&self.behavior.preset.as_str()) {
             self.behavior.preset = DEFAULT_BEHAVIOR_PRESET.to_string();
         }
-        if self.behavior.walk_mode != DEFAULT_WALK_MODE {
+        if !SUPPORTED_WALK_MODES.contains(&self.behavior.walk_mode.as_str()) {
             self.behavior.walk_mode = DEFAULT_WALK_MODE.to_string();
         }
         self.behavior.sleep_after_idle_seconds = self
@@ -375,6 +377,44 @@ mod tests {
         let sanitized = config.sanitized();
 
         assert_eq!(sanitized.behavior.sleep_after_idle_seconds, 86_400);
+    }
+
+    #[test]
+    fn sanitized_behavior_config_accepts_v021_presets() {
+        for preset in ["quiet", "normal", "lively"] {
+            let mut config = AppConfig::default();
+            config.behavior.preset = preset.to_string();
+
+            let sanitized = config.sanitized();
+
+            assert_eq!(sanitized.behavior.preset, preset);
+            assert_eq!(sanitized.behavior.walk_mode, "short_range");
+        }
+    }
+
+    #[test]
+    fn sanitized_behavior_config_accepts_stationary_and_short_range_walk_modes() {
+        for walk_mode in ["stationary", "short_range"] {
+            let mut config = AppConfig::default();
+            config.behavior.walk_mode = walk_mode.to_string();
+
+            let sanitized = config.sanitized();
+
+            assert_eq!(sanitized.behavior.walk_mode, walk_mode);
+            assert_eq!(sanitized.behavior.preset, "quiet");
+        }
+    }
+
+    #[test]
+    fn sanitized_behavior_config_repairs_roaming_and_unknown_walk_modes() {
+        for walk_mode in ["roaming", "teleport"] {
+            let mut config = AppConfig::default();
+            config.behavior.walk_mode = walk_mode.to_string();
+
+            let sanitized = config.sanitized();
+
+            assert_eq!(sanitized.behavior.walk_mode, "short_range");
+        }
     }
 
     #[test]
