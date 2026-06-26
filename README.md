@@ -51,7 +51,7 @@ pnpm portable:windows
 ```
 
 Debug bundles are written under `src-tauri/target/debug/bundle/`. Release bundles are written under `src-tauri/target/release/bundle/`.
-The Windows portable zip is written to `src-tauri/target/release/bundle/portable/PicoPet_0.2.0_x64-portable.zip`.
+The Windows portable zip is written to `src-tauri/target/release/bundle/portable/PicoPet_0.2.1_x64-portable.zip`.
 
 ## Local Data
 
