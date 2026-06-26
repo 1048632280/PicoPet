@@ -82,7 +82,13 @@ Behavior parameters are currently configured through `data/config.json`:
 }
 ```
 
-`v0.2.0` implements the `quiet` preset and `short_range` walk mode. The future settings window is planned for `v0.3`.
+Supported behavior values:
+
+- `preset`: `quiet`, `normal`, `lively`
+- `walk_mode`: `stationary`, `short_range`
+- `sleep_after_idle_seconds`: `60` to `86400`
+
+`v0.2.1` supports `quiet`, `normal`, and `lively` behavior presets, plus `stationary` and `short_range` walk modes. `roaming` remains planned for a later behavior release. The future settings window is planned for `v0.3`.
 
 ## QA
 
