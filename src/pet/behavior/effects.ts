@@ -1,4 +1,5 @@
-import type { BehaviorState, RenderEffect } from "./types";
+import type { BehaviorProfile, BehaviorState, RenderEffect } from "./types";
+import { createBehaviorProfile } from "./timing";
 
 export function defaultRenderEffect(): RenderEffect {
   return {
@@ -13,17 +14,17 @@ export function defaultRenderEffect(): RenderEffect {
 export function renderEffectForState(
   state: BehaviorState,
   elapsedMs: number,
-  durationMs = 1400
+  profile: BehaviorProfile = createBehaviorProfile("quiet")
 ): RenderEffect {
   if (state === "happy") {
-    const progress = Math.min(Math.max(elapsedMs / Math.max(1, durationMs), 0), 1);
+    const progress = Math.min(Math.max(elapsedMs / Math.max(1, profile.timing.happyDurationMs), 0), 1);
     const bounce = Math.sin(progress * Math.PI);
     return {
-      scale: 1 + 0.08 * bounce,
+      scale: 1 + profile.happyScaleBoost * bounce,
       offsetX: 0,
-      offsetY: Math.round(-6 * bounce),
+      offsetY: Math.round(-profile.happyOffsetYPx * bounce),
       alpha: 1,
-      fpsMultiplier: 1.5
+      fpsMultiplier: profile.happyFpsMultiplier
     };
   }
 
@@ -54,7 +55,7 @@ export function renderEffectForState(
       offsetX: 0,
       offsetY: 0,
       alpha: 1,
-      fpsMultiplier: 1.2
+      fpsMultiplier: profile.walkFpsMultiplier
     };
   }
 
