@@ -2,8 +2,8 @@ import { invoke } from "@tauri-apps/api/core";
 
 export type BehaviorConfig = {
   enabled: boolean;
-  preset: "quiet" | string;
-  walk_mode: "short_range" | string;
+  preset: "quiet" | "normal" | "lively" | string;
+  walk_mode: "stationary" | "short_range" | "roaming" | string;
   sleep_after_idle_seconds: number;
 };
 
