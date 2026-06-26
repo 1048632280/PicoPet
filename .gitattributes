@@ -1,0 +1,2 @@
+*.sh text eol=lf
+.codex/skills/** text eol=lf

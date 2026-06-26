@@ -43,7 +43,7 @@
 
 ## Portable Zip
 
-- [ ] Extract `PicoPet_0.2.0-beta.1_x64-portable.zip` into a clean user-writable directory.
+- [ ] Extract `PicoPet_0.2.0_x64-portable.zip` into a clean user-writable directory.
 - [ ] Launch `PicoPet/picopet.exe`.
 - [ ] Confirm `PicoPet/data/config.json` is created.
 - [ ] Confirm `PicoPet/data/picopet.log` is created.
