@@ -67,14 +67,14 @@ fn save_updated_config_and_emit(
 
 fn save_imported_config(state: &AppState, imported: AppConfig) -> Result<AppConfig, String> {
     let config = imported.sanitized();
-    state
-        .store
-        .save(&config)
-        .map_err(|error| error.to_string())?;
     let mut guard = state
         .config
         .lock()
         .map_err(|_| "config lock is poisoned".to_string())?;
+    state
+        .store
+        .save(&config)
+        .map_err(|error| error.to_string())?;
     *guard = config.clone();
     Ok(config)
 }
@@ -532,5 +532,25 @@ mod tests {
 
         assert!(result.is_err());
         assert_eq!(*state.config.lock().unwrap(), original);
+    }
+
+    #[test]
+    fn import_persistence_takes_config_lock_before_saving() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config_path = temp_dir.path().join("config.json");
+        let state = AppState::new(
+            AppConfig::default(),
+            ConfigStore::new(config_path.clone()),
+            temp_dir.path().to_path_buf(),
+        );
+        let _ = std::panic::catch_unwind(|| {
+            let _guard = state.config.lock().unwrap();
+            panic!("poison config lock");
+        });
+
+        let result = save_imported_config(&state, AppConfig::default());
+
+        assert_eq!(result.unwrap_err(), "config lock is poisoned");
+        assert!(!config_path.exists());
     }
 }
