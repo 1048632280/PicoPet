@@ -59,6 +59,17 @@ describe("settings window", () => {
     document.body.innerHTML = '<main id="settings-root"></main>';
   });
 
+  it("renders the three settings sections", async () => {
+    commandMocks.getAppConfig.mockResolvedValue(cloneDefaultConfig());
+    const { bootSettings } = await import("./settings");
+
+    await bootSettings();
+
+    expect(document.body.textContent).toContain("行为");
+    expect(document.body.textContent).toContain("窗口");
+    expect(document.body.textContent).toContain("启动与维护");
+  });
+
   it("loads app config and populates controls", async () => {
     commandMocks.getAppConfig.mockResolvedValue({
       ...cloneDefaultConfig(),

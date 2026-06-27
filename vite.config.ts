@@ -13,6 +13,12 @@ export default defineConfig({
   envPrefix: ["VITE_", "TAURI_"],
   build: {
     target: "es2022",
-    minify: "esbuild"
+    minify: "esbuild",
+    rollupOptions: {
+      input: {
+        main: "index.html",
+        settings: "settings.html"
+      }
+    }
   }
 });
