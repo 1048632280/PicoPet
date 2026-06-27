@@ -73,7 +73,7 @@ fn save_imported_config(state: &AppState, imported: AppConfig) -> Result<AppConf
         .map_err(|_| "config lock is poisoned".to_string())?;
     state
         .store
-        .save(&config)
+        .save_atomically(&config)
         .map_err(|error| error.to_string())?;
     *guard = config.clone();
     Ok(config)
@@ -515,16 +515,22 @@ mod tests {
     fn import_persistence_failure_keeps_in_memory_config_unchanged() {
         let temp_dir = tempfile::tempdir().unwrap();
         let config_path = temp_dir.path().join("config.json");
-        std::fs::create_dir(&config_path).unwrap();
+        let temp_path = config_path.with_file_name("config.json.import.tmp");
         let mut original = AppConfig::default();
         original.window.x = 111;
         original.window.y = 222;
+        std::fs::write(
+            &config_path,
+            serde_json::to_string_pretty(&original).unwrap() + "\n",
+        )
+        .unwrap();
+        std::fs::create_dir(&temp_path).unwrap();
         let mut imported = AppConfig::default();
         imported.window.x = 333;
         imported.window.y = 444;
         let state = AppState::new(
             original.clone(),
-            ConfigStore::new(config_path),
+            ConfigStore::new(config_path.clone()),
             temp_dir.path().to_path_buf(),
         );
 
@@ -532,6 +538,13 @@ mod tests {
 
         assert!(result.is_err());
         assert_eq!(*state.config.lock().unwrap(), original);
+        assert_eq!(
+            serde_json::from_str::<AppConfig>(&std::fs::read_to_string(&config_path).unwrap())
+                .unwrap()
+                .window
+                .x,
+            111
+        );
     }
 
     #[test]

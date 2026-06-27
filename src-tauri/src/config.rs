@@ -1,5 +1,8 @@
 use serde::{Deserialize, Serialize};
-use std::{fs, io, path::PathBuf};
+use std::{
+    fs, io,
+    path::{Path, PathBuf},
+};
 use thiserror::Error;
 
 const DEFAULT_X: i32 = 1200;
@@ -253,11 +256,70 @@ impl ConfigStore {
         fs::write(&self.path, format!("{body}\n"))?;
         Ok(())
     }
+
+    pub fn save_atomically(&self, config: &AppConfig) -> Result<(), ConfigError> {
+        if let Some(parent) = self.path.parent() {
+            fs::create_dir_all(parent)?;
+        }
+        let body = serde_json::to_string_pretty(config)?;
+        let temp_path = self.atomic_temp_path();
+        fs::write(&temp_path, format!("{body}\n"))?;
+        replace_file(&temp_path, &self.path).inspect_err(|_| {
+            let _ = fs::remove_file(&temp_path);
+        })?;
+        Ok(())
+    }
+
+    fn atomic_temp_path(&self) -> PathBuf {
+        self.path.with_file_name(format!(
+            "{}.import.tmp",
+            self.path.file_name().unwrap_or_default().to_string_lossy()
+        ))
+    }
+}
+
+#[cfg(target_os = "windows")]
+fn replace_file(source: &Path, destination: &Path) -> io::Result<()> {
+    use std::{ffi::OsStr, os::windows::ffi::OsStrExt};
+    use windows_sys::Win32::Storage::FileSystem::{
+        MoveFileExW, MOVEFILE_REPLACE_EXISTING, MOVEFILE_WRITE_THROUGH,
+    };
+
+    fn wide(path: &OsStr) -> Vec<u16> {
+        path.encode_wide().chain(std::iter::once(0)).collect()
+    }
+
+    let source = wide(source.as_os_str());
+    let destination = wide(destination.as_os_str());
+    let result = unsafe {
+        MoveFileExW(
+            source.as_ptr(),
+            destination.as_ptr(),
+            MOVEFILE_REPLACE_EXISTING | MOVEFILE_WRITE_THROUGH,
+        )
+    };
+    if result == 0 {
+        Err(io::Error::last_os_error())
+    } else {
+        Ok(())
+    }
+}
+
+#[cfg(not(target_os = "windows"))]
+fn replace_file(source: &Path, destination: &Path) -> io::Result<()> {
+    fs::rename(source, destination)
 }
 
 #[cfg(test)]
 mod tests {
     use super::*;
+
+    fn import_temp_path(config_path: &std::path::Path) -> PathBuf {
+        config_path.with_file_name(format!(
+            "{}.import.tmp",
+            config_path.file_name().unwrap().to_string_lossy()
+        ))
+    }
 
     #[test]
     fn default_config_matches_mvp_constraints() {
@@ -480,6 +542,40 @@ mod tests {
 
         assert_eq!(config, AppConfig::default());
         assert!(repaired.contains("\"click_through\": false"));
+    }
+
+    #[test]
+    fn atomic_save_preserves_existing_file_when_temp_write_fails() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("config.json");
+        let store = ConfigStore::new(path.clone());
+        let original_body = "{\n  \"window\": { \"x\": 111 }\n}\n";
+        std::fs::write(&path, original_body).unwrap();
+        std::fs::create_dir(import_temp_path(&path)).unwrap();
+        let mut next = AppConfig::default();
+        next.window.x = 333;
+
+        let result = store.save_atomically(&next);
+
+        assert!(result.is_err());
+        assert_eq!(std::fs::read_to_string(&path).unwrap(), original_body);
+    }
+
+    #[test]
+    fn atomic_save_replaces_config_after_temp_write_succeeds() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let path = temp_dir.path().join("config.json");
+        let store = ConfigStore::new(path.clone());
+        std::fs::write(&path, "old config\n").unwrap();
+        let mut next = AppConfig::default();
+        next.window.x = 333;
+
+        store.save_atomically(&next).unwrap();
+        let saved = std::fs::read_to_string(&path).unwrap();
+
+        assert!(saved.contains("\"x\": 333"));
+        assert!(saved.ends_with('\n'));
+        assert!(!import_temp_path(&path).exists());
     }
 
     #[test]
