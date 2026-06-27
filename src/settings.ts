@@ -1,7 +1,12 @@
 import "./settings.css";
 import {
+  exportConfig,
   getAppConfig,
+  getDiagnosticsInfo,
+  importConfig,
   openConfigDir,
+  openLogFile,
+  resetConfigToDefaults,
   resetWindowPosition,
   setAnimationPaused,
   setBehaviorPreset,
@@ -12,12 +17,14 @@ import {
   setWindowScale,
   type AppConfig,
   type BehaviorPreset,
+  type DiagnosticsInfo,
   type WalkMode
 } from "./tauri/commands";
 
 type Control = HTMLInputElement | HTMLSelectElement | HTMLButtonElement;
 
 let currentConfig: AppConfig | null = null;
+let resetDefaultsConfirmUntil = 0;
 
 const behaviorPresetLabels: Record<BehaviorPreset, string> = {
   quiet: "安静",
@@ -81,7 +88,15 @@ function renderShell(root: HTMLElement) {
         <span>开机启动</span>
         <input data-setting="launch-on-login" type="checkbox" />
       </label>
-      <button data-action="open-config-dir" type="button">打开配置目录</button>
+      <div class="maintenance-grid">
+        <button data-action="open-config-dir" type="button">打开配置目录</button>
+        <button data-action="open-log-file" type="button">打开日志文件</button>
+        <button data-action="export-config" type="button">导出配置</button>
+        <button data-action="import-config" type="button">导入配置</button>
+        <button data-action="reset-defaults" type="button">恢复默认设置</button>
+        <button data-action="show-diagnostics" type="button">生成诊断信息</button>
+      </div>
+      <pre class="settings-diagnostics" data-role="diagnostics" aria-live="polite"></pre>
     </section>
     <p class="settings-status" data-role="status" aria-live="polite"></p>
   `;
@@ -101,6 +116,25 @@ function setStatus(root: HTMLElement, message: string) {
 
 function setPending(control: Control, pending: boolean) {
   control.disabled = pending;
+}
+
+function formatMaintenancePath(path: string): string {
+  const normalized = path.replaceAll("\\", "/");
+  const dataIndex = normalized.lastIndexOf("/data/");
+  return dataIndex >= 0 ? normalized.slice(dataIndex + 1) : path;
+}
+
+function formatDiagnostics(info: DiagnosticsInfo): string {
+  return [
+    `版本: ${info.version}`,
+    `配置目录: ${info.config_dir}`,
+    `配置文件: ${info.config_file}`,
+    `日志文件: ${info.log_file}`
+  ].join("\n");
+}
+
+function setDiagnostics(root: HTMLElement, text: string) {
+  find<HTMLElement>(root, '[data-role="diagnostics"]').textContent = text;
 }
 
 function applyConfig(root: HTMLElement, config: AppConfig) {
@@ -127,6 +161,73 @@ async function runConfigCommand(root: HTMLElement, control: Control, command: ()
     setStatus(root, "");
   } catch (error) {
     applyConfig(root, previous);
+    setStatus(root, error instanceof Error ? error.message : String(error));
+  } finally {
+    setPending(control, false);
+  }
+}
+
+async function runVoidCommand(
+  root: HTMLElement,
+  control: Control,
+  command: () => Promise<void>,
+  successMessage = ""
+) {
+  setPending(control, true);
+  setStatus(root, "处理中");
+  try {
+    await command();
+    setStatus(root, successMessage);
+  } catch (error) {
+    setStatus(root, error instanceof Error ? error.message : String(error));
+  } finally {
+    setPending(control, false);
+  }
+}
+
+async function runMaintenanceConfigCommand(
+  root: HTMLElement,
+  control: Control,
+  command: () => Promise<AppConfig>,
+  successMessage: string
+) {
+  if (!currentConfig) {
+    return;
+  }
+  const previous = currentConfig;
+  setPending(control, true);
+  setStatus(root, "处理中");
+  try {
+    const nextConfig = await command();
+    applyConfig(root, nextConfig);
+    setStatus(root, successMessage);
+  } catch (error) {
+    applyConfig(root, previous);
+    setStatus(root, error instanceof Error ? error.message : String(error));
+  } finally {
+    setPending(control, false);
+  }
+}
+
+async function handleResetDefaultsClick(root: HTMLElement, control: HTMLButtonElement) {
+  const now = Date.now();
+  if (now > resetDefaultsConfirmUntil) {
+    resetDefaultsConfirmUntil = now + 5000;
+    setStatus(root, "再次点击确认恢复默认");
+    return;
+  }
+  resetDefaultsConfirmUntil = 0;
+  await runMaintenanceConfigCommand(root, control, resetConfigToDefaults, "已恢复默认设置");
+}
+
+async function showDiagnosticsInfo(root: HTMLElement, control: HTMLButtonElement) {
+  setPending(control, true);
+  setStatus(root, "处理中");
+  try {
+    const info = await getDiagnosticsInfo();
+    setDiagnostics(root, formatDiagnostics(info));
+    setStatus(root, "已生成诊断信息");
+  } catch (error) {
     setStatus(root, error instanceof Error ? error.message : String(error));
   } finally {
     setPending(control, false);
@@ -185,6 +286,40 @@ function bindControls(root: HTMLElement) {
     } finally {
       setPending(control, false);
     }
+  });
+
+  find<HTMLButtonElement>(root, '[data-action="open-log-file"]').addEventListener("click", (event) => {
+    const control = event.currentTarget as HTMLButtonElement;
+    void runVoidCommand(root, control, openLogFile);
+  });
+
+  find<HTMLButtonElement>(root, '[data-action="export-config"]').addEventListener("click", async (event) => {
+    const control = event.currentTarget as HTMLButtonElement;
+    setPending(control, true);
+    setStatus(root, "处理中");
+    try {
+      const result = await exportConfig();
+      setStatus(root, `已导出到 ${formatMaintenancePath(result.path)}`);
+    } catch (error) {
+      setStatus(root, error instanceof Error ? error.message : String(error));
+    } finally {
+      setPending(control, false);
+    }
+  });
+
+  find<HTMLButtonElement>(root, '[data-action="import-config"]').addEventListener("click", (event) => {
+    const control = event.currentTarget as HTMLButtonElement;
+    void runMaintenanceConfigCommand(root, control, importConfig, "已导入配置");
+  });
+
+  find<HTMLButtonElement>(root, '[data-action="reset-defaults"]').addEventListener("click", (event) => {
+    const control = event.currentTarget as HTMLButtonElement;
+    void handleResetDefaultsClick(root, control);
+  });
+
+  find<HTMLButtonElement>(root, '[data-action="show-diagnostics"]').addEventListener("click", (event) => {
+    const control = event.currentTarget as HTMLButtonElement;
+    void showDiagnosticsInfo(root, control);
   });
 }
 

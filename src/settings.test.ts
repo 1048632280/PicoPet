@@ -11,7 +11,12 @@ const commandMocks = vi.hoisted(() => ({
   setWalkMode: vi.fn(),
   setWindowScale: vi.fn(),
   resetWindowPosition: vi.fn(),
-  openConfigDir: vi.fn()
+  openConfigDir: vi.fn(),
+  exportConfig: vi.fn(),
+  importConfig: vi.fn(),
+  openLogFile: vi.fn(),
+  resetConfigToDefaults: vi.fn(),
+  getDiagnosticsInfo: vi.fn()
 }));
 
 vi.mock("./tauri/commands", () => commandMocks);
@@ -236,5 +241,123 @@ describe("settings window", () => {
 
     expect(preset.value).toBe("quiet");
     expect(control<HTMLElement>('[data-role="status"]').textContent).toContain("save failed");
+  });
+
+  it("renders maintenance buttons", async () => {
+    commandMocks.getAppConfig.mockResolvedValue(cloneDefaultConfig());
+    const { bootSettings } = await import("./settings");
+
+    await bootSettings();
+
+    expect(document.body.textContent).toContain("打开日志文件");
+    expect(document.body.textContent).toContain("导出配置");
+    expect(document.body.textContent).toContain("导入配置");
+    expect(document.body.textContent).toContain("恢复默认设置");
+    expect(document.body.textContent).toContain("生成诊断信息");
+  });
+
+  it("requires a second click before resetting defaults", async () => {
+    commandMocks.getAppConfig.mockResolvedValue(cloneDefaultConfig());
+    commandMocks.resetConfigToDefaults.mockResolvedValue({
+      ...cloneDefaultConfig(),
+      behavior: {
+        ...cloneDefaultConfig().behavior,
+        preset: "quiet"
+      }
+    });
+    const { bootSettings } = await import("./settings");
+    await bootSettings();
+
+    const reset = control<HTMLButtonElement>('[data-action="reset-defaults"]');
+    reset.click();
+    await Promise.resolve();
+
+    expect(commandMocks.resetConfigToDefaults).not.toHaveBeenCalled();
+    expect(control<HTMLElement>('[data-role="status"]').textContent).toContain("再次点击确认恢复默认");
+
+    reset.click();
+    await Promise.resolve();
+
+    expect(commandMocks.resetConfigToDefaults).toHaveBeenCalled();
+  });
+
+  it("exports config and shows the returned path", async () => {
+    commandMocks.getAppConfig.mockResolvedValue(cloneDefaultConfig());
+    commandMocks.exportConfig.mockResolvedValue({ path: "C:\\Tools\\PicoPet\\data\\config.export.json" });
+    const { bootSettings } = await import("./settings");
+    await bootSettings();
+
+    control<HTMLButtonElement>('[data-action="export-config"]').click();
+    await Promise.resolve();
+
+    expect(commandMocks.exportConfig).toHaveBeenCalled();
+    expect(control<HTMLElement>('[data-role="status"]').textContent).toContain("config.export.json");
+  });
+
+  it("imports config and refreshes controls from the returned config", async () => {
+    commandMocks.getAppConfig.mockResolvedValue(cloneDefaultConfig());
+    commandMocks.importConfig.mockResolvedValue({
+      ...cloneDefaultConfig(),
+      behavior: {
+        ...cloneDefaultConfig().behavior,
+        preset: "normal",
+        walk_mode: "stationary"
+      }
+    });
+    const { bootSettings } = await import("./settings");
+    await bootSettings();
+
+    control<HTMLButtonElement>('[data-action="import-config"]').click();
+    await Promise.resolve();
+
+    expect(commandMocks.importConfig).toHaveBeenCalled();
+    expect(control<HTMLSelectElement>('[data-setting="behavior-preset"]').value).toBe("normal");
+    expect(control<HTMLSelectElement>('[data-setting="walk-mode"]').value).toBe("stationary");
+  });
+
+  it("keeps controls unchanged when import fails", async () => {
+    commandMocks.getAppConfig.mockResolvedValue(cloneDefaultConfig());
+    commandMocks.importConfig.mockRejectedValue(new Error("导入配置解析失败"));
+    const { bootSettings } = await import("./settings");
+    await bootSettings();
+
+    control<HTMLButtonElement>('[data-action="import-config"]').click();
+    await Promise.resolve();
+
+    expect(control<HTMLSelectElement>('[data-setting="behavior-preset"]').value).toBe("quiet");
+    expect(control<HTMLElement>('[data-role="status"]').textContent).toContain("导入配置解析失败");
+  });
+
+  it("opens the log file and reports failures", async () => {
+    commandMocks.getAppConfig.mockResolvedValue(cloneDefaultConfig());
+    commandMocks.openLogFile.mockRejectedValue(new Error("日志文件不存在"));
+    const { bootSettings } = await import("./settings");
+    await bootSettings();
+
+    control<HTMLButtonElement>('[data-action="open-log-file"]').click();
+    await Promise.resolve();
+
+    expect(commandMocks.openLogFile).toHaveBeenCalled();
+    expect(control<HTMLElement>('[data-role="status"]').textContent).toContain("日志文件不存在");
+  });
+
+  it("shows diagnostics information", async () => {
+    commandMocks.getAppConfig.mockResolvedValue(cloneDefaultConfig());
+    commandMocks.getDiagnosticsInfo.mockResolvedValue({
+      version: "0.3.1",
+      config_dir: "C:\\Tools\\PicoPet\\data",
+      config_file: "C:\\Tools\\PicoPet\\data\\config.json",
+      log_file: "C:\\Tools\\PicoPet\\data\\picopet.log"
+    });
+    const { bootSettings } = await import("./settings");
+    await bootSettings();
+
+    control<HTMLButtonElement>('[data-action="show-diagnostics"]').click();
+    await Promise.resolve();
+
+    const diagnostics = control<HTMLElement>('[data-role="diagnostics"]');
+    expect(diagnostics.textContent).toContain("版本: 0.3.1");
+    expect(diagnostics.textContent).toContain("配置目录");
+    expect(diagnostics.textContent).toContain("picopet.log");
   });
 });
