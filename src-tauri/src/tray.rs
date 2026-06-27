@@ -2,7 +2,7 @@ use crate::{commands, state::AppState};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
-    AppHandle, Emitter, Manager, WebviewWindow, Wry,
+    AppHandle, Manager, WebviewWindow, Wry,
 };
 
 const PAUSE_ID: &str = "toggle_pause";
@@ -117,17 +117,13 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
             MenuEventAction::UseMainWindow => {}
         }
 
-        let Some(window) = app.get_webview_window("main") else {
-            return;
-        };
-
         match event_id {
             PAUSE_ID => toggle_pause(app, &pause_item),
-            CLICK_THROUGH_ID => toggle_click_through(app, &window, &click_through_item),
-            RESET_ID => reset_position(app, window),
-            SCALE_UP_ID => scale_window(app, window, scale_up_value),
-            SCALE_DOWN_ID => scale_window(app, window, scale_down_value),
-            SCALE_RESET_ID => scale_window(app, window, |_| 1.0),
+            CLICK_THROUGH_ID => toggle_click_through(app, &click_through_item),
+            RESET_ID => reset_position(app),
+            SCALE_UP_ID => scale_window(app, scale_up_value),
+            SCALE_DOWN_ID => scale_window(app, scale_down_value),
+            SCALE_RESET_ID => scale_window(app, |_| 1.0),
             _ => {}
         }
     });
@@ -183,10 +179,6 @@ fn scale_down_value(current: f64) -> f64 {
         .scale
 }
 
-fn emit_config(app: &AppHandle, config: crate::config::AppConfig) {
-    let _ = app.emit("picopet://config", config);
-}
-
 fn save_window_position_before_exit(_app: &AppHandle, window: WebviewWindow) {
     if let Err(error) = commands::persist_main_window_position(window) {
         eprintln!("退出前保存窗口位置失败: {error}");
@@ -200,26 +192,20 @@ fn toggle_pause(app: &AppHandle, pause_item: &MenuItem<Wry>) {
         .lock()
         .map(|config| !config.animation.paused)
         .unwrap_or(false);
-    if let Ok(config) = commands::set_animation_paused(paused, state) {
+    if let Ok(config) = commands::set_animation_paused(paused, app.clone(), state) {
         let _ = pause_item.set_text(pause_label(config.animation.paused));
-        emit_config(app, config);
     }
 }
 
-fn toggle_click_through(
-    app: &AppHandle,
-    window: &WebviewWindow,
-    click_through_item: &MenuItem<Wry>,
-) {
+fn toggle_click_through(app: &AppHandle, click_through_item: &MenuItem<Wry>) {
     let state = app.state::<AppState>();
     let enabled = state
         .config
         .lock()
         .map(|config| !config.window.click_through)
         .unwrap_or(false);
-    if let Ok(config) = commands::set_click_through(enabled, window.clone(), state) {
+    if let Ok(config) = commands::set_click_through(enabled, app.clone(), state) {
         let _ = click_through_item.set_text(click_through_label(config.window.click_through));
-        emit_config(app, config);
     }
 }
 
@@ -233,7 +219,6 @@ fn toggle_launch_on_login(app: &AppHandle, launch_on_login_item: &MenuItem<Wry>)
     if let Ok(config) = commands::set_launch_on_login(enabled, app.clone(), state) {
         let _ =
             launch_on_login_item.set_text(launch_on_login_label(config.startup.launch_on_login));
-        emit_config(app, config.clone());
         crate::logging::append_log(
             app,
             &format!(
@@ -246,29 +231,22 @@ fn toggle_launch_on_login(app: &AppHandle, launch_on_login_item: &MenuItem<Wry>)
 
 fn open_config_dir(app: &AppHandle) {
     let state = app.state::<AppState>();
-    let _ = std::process::Command::new("explorer")
-        .arg(&state.data_dir)
-        .spawn();
-    crate::logging::append_log(app, "打开配置目录");
+    let _ = commands::open_config_dir(app.clone(), state);
 }
 
-fn reset_position(app: &AppHandle, window: WebviewWindow) {
+fn reset_position(app: &AppHandle) {
     let state = app.state::<AppState>();
-    if let Ok(config) = commands::reset_window_position(window, state) {
-        emit_config(app, config);
-    }
+    let _ = commands::reset_window_position(app.clone(), state);
 }
 
-fn scale_window(app: &AppHandle, window: WebviewWindow, next_scale: impl FnOnce(f64) -> f64) {
+fn scale_window(app: &AppHandle, next_scale: impl FnOnce(f64) -> f64) {
     let state = app.state::<AppState>();
     let current_scale = state
         .config
         .lock()
         .map(|config| config.window.scale)
         .unwrap_or(1.0);
-    if let Ok(config) = commands::set_window_scale(next_scale(current_scale), window, state) {
-        emit_config(app, config);
-    }
+    let _ = commands::set_window_scale(next_scale(current_scale), app.clone(), state);
 }
 
 #[cfg(test)]

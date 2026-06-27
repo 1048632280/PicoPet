@@ -11,8 +11,9 @@ mod window_position;
 mod window_state;
 
 use commands::{
-    get_app_config, reset_window_position, save_window_position, set_animation_paused,
-    set_click_through, set_launch_on_login, set_window_scale,
+    get_app_config, open_config_dir, reset_window_position, save_window_position,
+    set_animation_paused, set_behavior_preset, set_click_through, set_launch_on_login,
+    set_sleep_after_idle_seconds, set_walk_mode, set_window_scale,
 };
 use config::ConfigStore;
 use diagnostics::get_diagnostics_info;
@@ -64,6 +65,10 @@ pub fn run() {
             set_window_scale,
             set_click_through,
             set_launch_on_login,
+            set_behavior_preset,
+            set_walk_mode,
+            set_sleep_after_idle_seconds,
+            open_config_dir,
             get_diagnostics_info
         ])
         .run(tauri::generate_context!())
