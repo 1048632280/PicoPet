@@ -65,6 +65,20 @@ fn save_updated_config_and_emit(
     Ok(config)
 }
 
+fn save_imported_config(state: &AppState, imported: AppConfig) -> Result<AppConfig, String> {
+    let config = imported.sanitized();
+    state
+        .store
+        .save(&config)
+        .map_err(|error| error.to_string())?;
+    let mut guard = state
+        .config
+        .lock()
+        .map_err(|_| "config lock is poisoned".to_string())?;
+    *guard = config.clone();
+    Ok(config)
+}
+
 fn apply_behavior_preset(config: &mut AppConfig, preset: &str) -> Result<(), String> {
     if !SUPPORTED_BEHAVIOR_PRESETS.contains(&preset) {
         return Err(format!("unsupported behavior preset: {preset}"));
@@ -351,10 +365,9 @@ pub fn export_config(state: State<AppState>) -> Result<MaintenanceFileResult, St
 #[tauri::command]
 pub fn import_config(app: AppHandle, state: State<AppState>) -> Result<AppConfig, String> {
     let imported = crate::maintenance::import_config_from_data_dir(&state.data_dir)?;
-    save_updated_config_and_emit(&state, &app, |config| {
-        *config = imported;
-        Ok(())
-    })
+    let config = save_imported_config(&state, imported)?;
+    emit_config(&app, &config);
+    Ok(config)
 }
 
 #[tauri::command]
@@ -386,6 +399,7 @@ pub fn open_settings_window(app: AppHandle, state: State<AppState>) -> Result<()
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::ConfigStore;
 
     #[test]
     fn persist_window_position_only_updates_coordinates() {
@@ -495,5 +509,28 @@ mod tests {
         assert_eq!(visible.window.x, 2200);
         assert_eq!(visible.window.y, 200);
         assert_eq!(visible.window.scale, 2.0);
+    }
+
+    #[test]
+    fn import_persistence_failure_keeps_in_memory_config_unchanged() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config_path = temp_dir.path().join("config.json");
+        std::fs::create_dir(&config_path).unwrap();
+        let mut original = AppConfig::default();
+        original.window.x = 111;
+        original.window.y = 222;
+        let mut imported = AppConfig::default();
+        imported.window.x = 333;
+        imported.window.y = 444;
+        let state = AppState::new(
+            original.clone(),
+            ConfigStore::new(config_path),
+            temp_dir.path().to_path_buf(),
+        );
+
+        let result = save_imported_config(&state, imported);
+
+        assert!(result.is_err());
+        assert_eq!(*state.config.lock().unwrap(), original);
     }
 }

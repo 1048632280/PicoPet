@@ -6,8 +6,6 @@ use thiserror::Error;
 
 const DATA_DIR_NAME: &str = "data";
 const CONFIG_FILE_NAME: &str = "config.json";
-const CONFIG_EXPORT_FILE_NAME: &str = "config.export.json";
-const CONFIG_IMPORT_FILE_NAME: &str = "config.import.json";
 const LOG_FILE_NAME: &str = "picopet.log";
 const WEBVIEW_DATA_DIR_NAME: &str = "EBWebView";
 
@@ -38,11 +36,11 @@ pub fn config_file_path(data_dir: &Path) -> PathBuf {
 }
 
 pub fn config_export_file_path(data_dir: &Path) -> PathBuf {
-    data_dir.join(CONFIG_EXPORT_FILE_NAME)
+    data_dir.join(crate::maintenance::CONFIG_EXPORT_FILE_NAME)
 }
 
 pub fn config_import_file_path(data_dir: &Path) -> PathBuf {
-    data_dir.join(CONFIG_IMPORT_FILE_NAME)
+    data_dir.join(crate::maintenance::CONFIG_IMPORT_FILE_NAME)
 }
 
 pub fn log_file_path(data_dir: &Path) -> PathBuf {
