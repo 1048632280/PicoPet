@@ -94,4 +94,40 @@ describe("command wrappers", () => {
 
     expect(invoke).toHaveBeenCalledWith("get_diagnostics_info");
   });
+
+  it("calls reset_config_to_defaults without payload", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const { resetConfigToDefaults } = await import("./commands");
+
+    await resetConfigToDefaults();
+
+    expect(invoke).toHaveBeenCalledWith("reset_config_to_defaults");
+  });
+
+  it("calls export_config without payload", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const { exportConfig } = await import("./commands");
+
+    await exportConfig();
+
+    expect(invoke).toHaveBeenCalledWith("export_config");
+  });
+
+  it("calls import_config without payload", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const { importConfig } = await import("./commands");
+
+    await importConfig();
+
+    expect(invoke).toHaveBeenCalledWith("import_config");
+  });
+
+  it("calls open_log_file without payload", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const { openLogFile } = await import("./commands");
+
+    await openLogFile();
+
+    expect(invoke).toHaveBeenCalledWith("open_log_file");
+  });
 });
