@@ -51,7 +51,7 @@ pnpm portable:windows
 ```
 
 Debug bundles are written under `src-tauri/target/debug/bundle/`. Release bundles are written under `src-tauri/target/release/bundle/`.
-The Windows portable zip is written to `src-tauri/target/release/bundle/portable/PicoPet_0.3.0_x64-portable.zip`.
+The Windows portable zip is written to `src-tauri/target/release/bundle/portable/PicoPet_<package version>_x64-portable.zip`.
 
 ## Local Data
 
@@ -109,6 +109,11 @@ Available settings:
 - Reset position
 - Launch on login
 - Open config directory
+- Open log file
+- Export config to `PicoPet/data/config.export.json`
+- Import config from `PicoPet/data/config.import.json`
+- Restore default config
+- Generate diagnostics information
 
 Manual editing of `PicoPet/data/config.json` remains available for advanced users. `roaming` is not exposed in v0.3.
 
