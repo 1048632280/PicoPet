@@ -3,6 +3,7 @@ pub mod config;
 mod diagnostics;
 mod logging;
 mod main_window;
+mod maintenance;
 mod platform;
 mod portable_data;
 mod settings_window;
@@ -12,9 +13,10 @@ mod window_position;
 mod window_state;
 
 use commands::{
-    get_app_config, open_config_dir, open_settings_window, reset_window_position,
-    save_window_position, set_animation_paused, set_behavior_preset, set_click_through,
-    set_launch_on_login, set_sleep_after_idle_seconds, set_walk_mode, set_window_scale,
+    export_config, get_app_config, import_config, open_config_dir, open_log_file,
+    open_settings_window, reset_config_to_defaults, reset_window_position, save_window_position,
+    set_animation_paused, set_behavior_preset, set_click_through, set_launch_on_login,
+    set_sleep_after_idle_seconds, set_walk_mode, set_window_scale,
 };
 use config::ConfigStore;
 use diagnostics::get_diagnostics_info;
@@ -69,6 +71,10 @@ pub fn run() {
             set_behavior_preset,
             set_walk_mode,
             set_sleep_after_idle_seconds,
+            reset_config_to_defaults,
+            export_config,
+            import_config,
+            open_log_file,
             open_config_dir,
             open_settings_window,
             get_diagnostics_info

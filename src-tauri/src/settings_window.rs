@@ -5,7 +5,7 @@ pub const SETTINGS_WINDOW_LABEL: &str = "settings";
 pub const SETTINGS_WINDOW_TITLE: &str = "PicoPet 设置";
 pub const SETTINGS_WINDOW_URL: &str = "settings.html";
 pub const SETTINGS_WINDOW_WIDTH: f64 = 360.0;
-pub const SETTINGS_WINDOW_HEIGHT: f64 = 460.0;
+pub const SETTINGS_WINDOW_HEIGHT: f64 = 560.0;
 
 #[derive(Debug, PartialEq, Eq)]
 enum SettingsWindowLifecycleAction {
@@ -59,7 +59,7 @@ mod tests {
         assert_eq!(SETTINGS_WINDOW_LABEL, "settings");
         assert_eq!(SETTINGS_WINDOW_TITLE, "PicoPet 设置");
         assert_eq!(SETTINGS_WINDOW_WIDTH, 360.0);
-        assert_eq!(SETTINGS_WINDOW_HEIGHT, 460.0);
+        assert_eq!(SETTINGS_WINDOW_HEIGHT, 560.0);
     }
 
     #[test]

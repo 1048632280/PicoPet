@@ -35,6 +35,14 @@ pub fn config_file_path(data_dir: &Path) -> PathBuf {
     data_dir.join(CONFIG_FILE_NAME)
 }
 
+pub fn config_export_file_path(data_dir: &Path) -> PathBuf {
+    data_dir.join(crate::maintenance::CONFIG_EXPORT_FILE_NAME)
+}
+
+pub fn config_import_file_path(data_dir: &Path) -> PathBuf {
+    data_dir.join(crate::maintenance::CONFIG_IMPORT_FILE_NAME)
+}
+
 pub fn log_file_path(data_dir: &Path) -> PathBuf {
     data_dir.join(LOG_FILE_NAME)
 }
@@ -77,6 +85,20 @@ mod tests {
         assert_eq!(config_file_path(&data_dir), data_dir.join("config.json"));
         assert_eq!(log_file_path(&data_dir), data_dir.join("picopet.log"));
         assert_eq!(webview_data_dir(&data_dir), data_dir.join("EBWebView"));
+    }
+
+    #[test]
+    fn maintenance_file_paths_live_under_data_dir() {
+        let data_dir = PathBuf::from(r"C:\Tools\PicoPet\data");
+
+        assert_eq!(
+            config_export_file_path(&data_dir),
+            data_dir.join("config.export.json")
+        );
+        assert_eq!(
+            config_import_file_path(&data_dir),
+            data_dir.join("config.import.json")
+        );
     }
 
     #[test]

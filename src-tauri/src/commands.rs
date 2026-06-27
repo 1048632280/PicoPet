@@ -1,6 +1,7 @@
 use crate::{
     config::AppConfig,
     main_window::MAIN_WINDOW_LABEL,
+    maintenance::MaintenanceFileResult,
     state::AppState,
     window_position::{normalize_position_for_screens, screens_with_primary_first, ScreenRect},
 };
@@ -61,6 +62,20 @@ fn save_updated_config_and_emit(
     let config = guard.clone();
     drop(guard);
     emit_config(app, &config);
+    Ok(config)
+}
+
+fn save_imported_config(state: &AppState, imported: AppConfig) -> Result<AppConfig, String> {
+    let config = imported.sanitized();
+    let mut guard = state
+        .config
+        .lock()
+        .map_err(|_| "config lock is poisoned".to_string())?;
+    state
+        .store
+        .save_atomically(&config)
+        .map_err(|error| error.to_string())?;
+    *guard = config.clone();
     Ok(config)
 }
 
@@ -327,6 +342,46 @@ pub fn set_sleep_after_idle_seconds(
 }
 
 #[tauri::command]
+pub fn reset_config_to_defaults(
+    app: AppHandle,
+    state: State<AppState>,
+) -> Result<AppConfig, String> {
+    save_updated_config_and_emit(&state, &app, |config| {
+        *config = AppConfig::default().sanitized();
+        Ok(())
+    })
+}
+
+#[tauri::command]
+pub fn export_config(state: State<AppState>) -> Result<MaintenanceFileResult, String> {
+    let config = state
+        .config
+        .lock()
+        .map_err(|_| "config lock is poisoned".to_string())?
+        .clone();
+    crate::maintenance::export_config_to_data_dir(&config, &state.data_dir)
+}
+
+#[tauri::command]
+pub fn import_config(app: AppHandle, state: State<AppState>) -> Result<AppConfig, String> {
+    let imported = crate::maintenance::import_config_from_data_dir(&state.data_dir)?;
+    let config = save_imported_config(&state, imported)?;
+    emit_config(&app, &config);
+    Ok(config)
+}
+
+#[tauri::command]
+pub fn open_log_file(app: AppHandle, state: State<AppState>) -> Result<(), String> {
+    let log_file = crate::maintenance::existing_log_file_path(&state.data_dir)?;
+    std::process::Command::new("explorer")
+        .arg(format!("/select,{}", log_file.display()))
+        .spawn()
+        .map_err(|error| error.to_string())?;
+    crate::logging::append_log(&app, "设置窗口打开日志文件");
+    Ok(())
+}
+
+#[tauri::command]
 pub fn open_config_dir(app: AppHandle, state: State<AppState>) -> Result<(), String> {
     std::process::Command::new("explorer")
         .arg(&state.data_dir)
@@ -344,6 +399,7 @@ pub fn open_settings_window(app: AppHandle, state: State<AppState>) -> Result<()
 #[cfg(test)]
 mod tests {
     use super::*;
+    use crate::config::ConfigStore;
 
     #[test]
     fn persist_window_position_only_updates_coordinates() {
@@ -453,5 +509,61 @@ mod tests {
         assert_eq!(visible.window.x, 2200);
         assert_eq!(visible.window.y, 200);
         assert_eq!(visible.window.scale, 2.0);
+    }
+
+    #[test]
+    fn import_persistence_failure_keeps_in_memory_config_unchanged() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config_path = temp_dir.path().join("config.json");
+        let temp_path = config_path.with_file_name("config.json.import.tmp");
+        let mut original = AppConfig::default();
+        original.window.x = 111;
+        original.window.y = 222;
+        std::fs::write(
+            &config_path,
+            serde_json::to_string_pretty(&original).unwrap() + "\n",
+        )
+        .unwrap();
+        std::fs::create_dir(&temp_path).unwrap();
+        let mut imported = AppConfig::default();
+        imported.window.x = 333;
+        imported.window.y = 444;
+        let state = AppState::new(
+            original.clone(),
+            ConfigStore::new(config_path.clone()),
+            temp_dir.path().to_path_buf(),
+        );
+
+        let result = save_imported_config(&state, imported);
+
+        assert!(result.is_err());
+        assert_eq!(*state.config.lock().unwrap(), original);
+        assert_eq!(
+            serde_json::from_str::<AppConfig>(&std::fs::read_to_string(&config_path).unwrap())
+                .unwrap()
+                .window
+                .x,
+            111
+        );
+    }
+
+    #[test]
+    fn import_persistence_takes_config_lock_before_saving() {
+        let temp_dir = tempfile::tempdir().unwrap();
+        let config_path = temp_dir.path().join("config.json");
+        let state = AppState::new(
+            AppConfig::default(),
+            ConfigStore::new(config_path.clone()),
+            temp_dir.path().to_path_buf(),
+        );
+        let _ = std::panic::catch_unwind(|| {
+            let _guard = state.config.lock().unwrap();
+            panic!("poison config lock");
+        });
+
+        let result = save_imported_config(&state, AppConfig::default());
+
+        assert_eq!(result.unwrap_err(), "config lock is poisoned");
+        assert!(!config_path.exists());
     }
 }

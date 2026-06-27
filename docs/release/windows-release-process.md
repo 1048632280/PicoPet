@@ -28,6 +28,7 @@ pnpm memory:windows -- -OutputJson docs/qa/memory-baseline.latest.json
 
 Run every item in:
 
+- `docs/qa/windows-v0.3.1-maintenance-checklist.md`
 - `docs/qa/windows-v0.3-settings-checklist.md`
 - `docs/qa/windows-installer-checklist.md` for installer-specific QA
 
@@ -49,8 +50,8 @@ pnpm memory:windows -- -OutputJson docs/qa/memory-baseline.latest.json
 ## Artifacts
 
 - Release executable: `src-tauri/target/release/picopet.exe`
-- NSIS installer: `src-tauri/target/release/bundle/nsis/PicoPet_0.3.0_x64-setup.exe`
-- Portable zip: `src-tauri/target/release/bundle/portable/PicoPet_0.3.0_x64-portable.zip`
+- NSIS installer: `src-tauri/target/release/bundle/nsis/PicoPet_<package version>_x64-setup.exe`
+- Portable zip: `src-tauri/target/release/bundle/portable/PicoPet_<package version>_x64-portable.zip`
 
 ## Release Notes
 
@@ -66,6 +67,7 @@ For Windows release builds, include:
 
 - Windows Beta portable data acceptance: `docs/qa/windows-beta-portable-data-acceptance-2026-06-24.md`
 - Windows v0.3 settings acceptance: `docs/qa/windows-v0.3-settings-acceptance-2026-06-27.md`
+- Windows v0.3.1 maintenance QA: `docs/qa/windows-v0.3.1-maintenance-checklist.md`
 - Windows v0.3 settings QA: `docs/qa/windows-v0.3-settings-checklist.md`
 - Windows v0.2.1 behavior QA: `docs/qa/windows-v0.2.1-checklist.md`
 - Windows installer QA: `docs/qa/windows-installer-checklist.md`

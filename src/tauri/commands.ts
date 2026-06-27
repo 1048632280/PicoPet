@@ -36,6 +36,10 @@ export type DiagnosticsInfo = {
   log_file: string;
 };
 
+export type MaintenanceFileResult = {
+  path: string;
+};
+
 export function getAppConfig(): Promise<AppConfig> {
   return invoke<AppConfig>("get_app_config");
 }
@@ -60,6 +64,22 @@ export function setSleepAfterIdleSeconds(seconds: number): Promise<AppConfig> {
 
 export function openConfigDir(): Promise<void> {
   return invoke<void>("open_config_dir");
+}
+
+export function resetConfigToDefaults(): Promise<AppConfig> {
+  return invoke<AppConfig>("reset_config_to_defaults");
+}
+
+export function exportConfig(): Promise<MaintenanceFileResult> {
+  return invoke<MaintenanceFileResult>("export_config");
+}
+
+export function importConfig(): Promise<AppConfig> {
+  return invoke<AppConfig>("import_config");
+}
+
+export function openLogFile(): Promise<void> {
+  return invoke<void>("open_log_file");
 }
 
 export function setAnimationPaused(paused: boolean): Promise<AppConfig> {
