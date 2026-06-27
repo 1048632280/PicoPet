@@ -122,7 +122,7 @@ pnpm portable:windows
 pnpm memory:windows
 ```
 
-Use `docs/qa/windows-v0.2.1-checklist.md` as the primary v0.2.1 manual QA checklist before tagging a Beta build; use `docs/qa/windows-installer-checklist.md` for installer-specific QA and `docs/qa/memory-baseline.md` for memory records.
+Use `docs/qa/windows-v0.3-settings-checklist.md` for v0.3 settings window QA, `docs/qa/windows-v0.2.1-checklist.md` as the primary v0.2.1 manual QA checklist before tagging a Beta build, `docs/qa/windows-installer-checklist.md` for installer-specific QA, and `docs/qa/memory-baseline.md` for memory records.
 `docs/qa/windows-alpha-checklist.md` is historical Alpha documentation only and is not part of active Beta release QA.
 
 ## Scope

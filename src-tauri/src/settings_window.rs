@@ -7,8 +7,28 @@ pub const SETTINGS_WINDOW_URL: &str = "settings.html";
 pub const SETTINGS_WINDOW_WIDTH: f64 = 360.0;
 pub const SETTINGS_WINDOW_HEIGHT: f64 = 460.0;
 
+#[derive(Debug, PartialEq, Eq)]
+enum SettingsWindowLifecycleAction {
+    Create,
+    FocusExisting,
+}
+
+fn settings_window_lifecycle_action(window_exists: bool) -> SettingsWindowLifecycleAction {
+    if window_exists {
+        SettingsWindowLifecycleAction::FocusExisting
+    } else {
+        SettingsWindowLifecycleAction::Create
+    }
+}
+
 pub fn open_settings_window(app: &AppHandle, data_dir: &Path) -> Result<WebviewWindow, String> {
-    if let Some(window) = app.get_webview_window(SETTINGS_WINDOW_LABEL) {
+    let existing_window = app.get_webview_window(SETTINGS_WINDOW_LABEL);
+
+    if let (SettingsWindowLifecycleAction::FocusExisting, Some(window)) = (
+        settings_window_lifecycle_action(existing_window.is_some()),
+        existing_window,
+    )
+    {
         window.show().map_err(|error| error.to_string())?;
         window.set_focus().map_err(|error| error.to_string())?;
         return Ok(window);
@@ -45,5 +65,43 @@ mod tests {
     #[test]
     fn settings_window_url_points_to_settings_html() {
         assert_eq!(SETTINGS_WINDOW_URL, "settings.html");
+    }
+
+    #[test]
+    fn lifecycle_action_creates_when_missing() {
+        assert_eq!(
+            settings_window_lifecycle_action(false),
+            SettingsWindowLifecycleAction::Create
+        );
+    }
+
+    #[test]
+    fn lifecycle_action_focuses_existing_window() {
+        assert_eq!(
+            settings_window_lifecycle_action(true),
+            SettingsWindowLifecycleAction::FocusExisting
+        );
+    }
+
+    #[test]
+    fn lifecycle_action_recreates_after_close_removes_existing_window() {
+        let mut window_exists = false;
+
+        assert_eq!(
+            settings_window_lifecycle_action(window_exists),
+            SettingsWindowLifecycleAction::Create
+        );
+        window_exists = true;
+
+        assert_eq!(
+            settings_window_lifecycle_action(window_exists),
+            SettingsWindowLifecycleAction::FocusExisting
+        );
+        window_exists = false;
+
+        assert_eq!(
+            settings_window_lifecycle_action(window_exists),
+            SettingsWindowLifecycleAction::Create
+        );
     }
 }
