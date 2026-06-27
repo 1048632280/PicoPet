@@ -336,6 +336,11 @@ pub fn open_config_dir(app: AppHandle, state: State<AppState>) -> Result<(), Str
     Ok(())
 }
 
+#[tauri::command]
+pub fn open_settings_window(app: AppHandle, state: State<AppState>) -> Result<(), String> {
+    crate::settings_window::open_settings_window(&app, &state.data_dir).map(|_| ())
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

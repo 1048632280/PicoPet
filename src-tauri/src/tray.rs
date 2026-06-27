@@ -7,6 +7,7 @@ use tauri::{
 
 const PAUSE_ID: &str = "toggle_pause";
 const CLICK_THROUGH_ID: &str = "toggle_click_through";
+const SETTINGS_ID: &str = "settings";
 const RESET_ID: &str = "reset_position";
 const SCALE_UP_ID: &str = "scale_up";
 const SCALE_DOWN_ID: &str = "scale_down";
@@ -45,6 +46,7 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         true,
         None::<&str>,
     )?;
+    let settings = MenuItem::with_id(app, SETTINGS_ID, "设置", true, None::<&str>)?;
     let reset = MenuItem::with_id(app, RESET_ID, "重置位置", true, None::<&str>)?;
     let scale_up = MenuItem::with_id(app, SCALE_UP_ID, "放大", true, None::<&str>)?;
     let scale_down = MenuItem::with_id(app, SCALE_DOWN_ID, "缩小", true, None::<&str>)?;
@@ -70,6 +72,7 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         &[
             &pause,
             &click_through,
+            &settings,
             &reset,
             &scale_up,
             &scale_down,
@@ -108,6 +111,7 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
             }
             MenuEventAction::UseApp => {
                 match event_id {
+                    SETTINGS_ID => open_settings_window(app),
                     LAUNCH_ON_LOGIN_ID => toggle_launch_on_login(app, &launch_on_login_item),
                     OPEN_CONFIG_ID => open_config_dir(app),
                     _ => {}
@@ -158,7 +162,7 @@ fn launch_on_login_label(enabled: bool) -> &'static str {
 fn menu_event_action(id: &str) -> MenuEventAction {
     match id {
         EXIT_ID => MenuEventAction::PersistWindowPositionAndExit,
-        LAUNCH_ON_LOGIN_ID | OPEN_CONFIG_ID | ABOUT_ID => MenuEventAction::UseApp,
+        SETTINGS_ID | LAUNCH_ON_LOGIN_ID | OPEN_CONFIG_ID | ABOUT_ID => MenuEventAction::UseApp,
         _ => MenuEventAction::UseMainWindow,
     }
 }
@@ -234,6 +238,13 @@ fn open_config_dir(app: &AppHandle) {
     let _ = commands::open_config_dir(app.clone(), state);
 }
 
+fn open_settings_window(app: &AppHandle) {
+    let state = app.state::<AppState>();
+    if let Err(error) = commands::open_settings_window(app.clone(), state) {
+        crate::logging::append_log(app, &format!("打开设置窗口失败: {error}"));
+    }
+}
+
 fn reset_position(app: &AppHandle) {
     let state = app.state::<AppState>();
     let _ = commands::reset_window_position(app.clone(), state);
@@ -269,6 +280,11 @@ mod tests {
     fn launch_on_login_label_matches_current_startup_state() {
         assert_eq!(launch_on_login_label(true), "关闭开机自启动");
         assert_eq!(launch_on_login_label(false), "开启开机自启动");
+    }
+
+    #[test]
+    fn settings_menu_event_uses_app() {
+        assert_eq!(menu_event_action(SETTINGS_ID), MenuEventAction::UseApp);
     }
 
     #[test]
