@@ -3,6 +3,7 @@ pub mod config;
 mod diagnostics;
 mod logging;
 mod main_window;
+mod maintenance;
 mod platform;
 mod portable_data;
 mod settings_window;
