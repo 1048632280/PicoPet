@@ -1,7 +1,7 @@
 {
   "$schema": "https://schema.tauri.app/config/2",
   "productName": "PicoPet",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "identifier": "com.picopet.desktop",
   "build": {
     "beforeDevCommand": "corepack pnpm dev",
