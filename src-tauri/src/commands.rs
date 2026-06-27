@@ -1,6 +1,7 @@
 use crate::{
     config::AppConfig,
     main_window::MAIN_WINDOW_LABEL,
+    maintenance::MaintenanceFileResult,
     state::AppState,
     window_position::{normalize_position_for_screens, screens_with_primary_first, ScreenRect},
 };
@@ -324,6 +325,47 @@ pub fn set_sleep_after_idle_seconds(
         apply_sleep_after_idle_seconds(config, seconds);
         Ok(())
     })
+}
+
+#[tauri::command]
+pub fn reset_config_to_defaults(
+    app: AppHandle,
+    state: State<AppState>,
+) -> Result<AppConfig, String> {
+    save_updated_config_and_emit(&state, &app, |config| {
+        *config = AppConfig::default().sanitized();
+        Ok(())
+    })
+}
+
+#[tauri::command]
+pub fn export_config(state: State<AppState>) -> Result<MaintenanceFileResult, String> {
+    let config = state
+        .config
+        .lock()
+        .map_err(|_| "config lock is poisoned".to_string())?
+        .clone();
+    crate::maintenance::export_config_to_data_dir(&config, &state.data_dir)
+}
+
+#[tauri::command]
+pub fn import_config(app: AppHandle, state: State<AppState>) -> Result<AppConfig, String> {
+    let imported = crate::maintenance::import_config_from_data_dir(&state.data_dir)?;
+    save_updated_config_and_emit(&state, &app, |config| {
+        *config = imported;
+        Ok(())
+    })
+}
+
+#[tauri::command]
+pub fn open_log_file(app: AppHandle, state: State<AppState>) -> Result<(), String> {
+    let log_file = crate::maintenance::existing_log_file_path(&state.data_dir)?;
+    std::process::Command::new("explorer")
+        .arg(format!("/select,{}", log_file.display()))
+        .spawn()
+        .map_err(|error| error.to_string())?;
+    crate::logging::append_log(&app, "设置窗口打开日志文件");
+    Ok(())
 }
 
 #[tauri::command]
