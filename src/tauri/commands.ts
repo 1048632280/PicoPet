@@ -7,6 +7,9 @@ export type BehaviorConfig = {
   sleep_after_idle_seconds: number;
 };
 
+export type BehaviorPreset = "quiet" | "normal" | "lively";
+export type WalkMode = "stationary" | "short_range";
+
 export type AppConfig = {
   window: {
     x: number;
@@ -35,6 +38,28 @@ export type DiagnosticsInfo = {
 
 export function getAppConfig(): Promise<AppConfig> {
   return invoke<AppConfig>("get_app_config");
+}
+
+export function openSettingsWindow(): Promise<void> {
+  return invoke<void>("open_settings_window");
+}
+
+export function setBehaviorPreset(preset: BehaviorPreset): Promise<AppConfig> {
+  return invoke<AppConfig>("set_behavior_preset", { preset });
+}
+
+export function setWalkMode(walkMode: WalkMode): Promise<AppConfig> {
+  return invoke<AppConfig>("set_walk_mode", { walkMode });
+}
+
+export function setSleepAfterIdleSeconds(seconds: number): Promise<AppConfig> {
+  return invoke<AppConfig>("set_sleep_after_idle_seconds", {
+    seconds: Math.round(seconds)
+  });
+}
+
+export function openConfigDir(): Promise<void> {
+  return invoke<void>("open_config_dir");
 }
 
 export function setAnimationPaused(paused: boolean): Promise<AppConfig> {

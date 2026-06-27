@@ -5,6 +5,51 @@ vi.mock("@tauri-apps/api/core", () => ({
 }));
 
 describe("command wrappers", () => {
+  it("calls open_settings_window without payload", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const { openSettingsWindow } = await import("./commands");
+
+    await openSettingsWindow();
+
+    expect(invoke).toHaveBeenCalledWith("open_settings_window");
+  });
+
+  it("calls set_behavior_preset with the expected payload", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const { setBehaviorPreset } = await import("./commands");
+
+    await setBehaviorPreset("normal");
+
+    expect(invoke).toHaveBeenCalledWith("set_behavior_preset", { preset: "normal" });
+  });
+
+  it("calls set_walk_mode with the expected payload", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const { setWalkMode } = await import("./commands");
+
+    await setWalkMode("stationary");
+
+    expect(invoke).toHaveBeenCalledWith("set_walk_mode", { walkMode: "stationary" });
+  });
+
+  it("calls set_sleep_after_idle_seconds with rounded seconds", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const { setSleepAfterIdleSeconds } = await import("./commands");
+
+    await setSleepAfterIdleSeconds(90.6);
+
+    expect(invoke).toHaveBeenCalledWith("set_sleep_after_idle_seconds", { seconds: 91 });
+  });
+
+  it("calls open_config_dir without payload", async () => {
+    const { invoke } = await import("@tauri-apps/api/core");
+    const { openConfigDir } = await import("./commands");
+
+    await openConfigDir();
+
+    expect(invoke).toHaveBeenCalledWith("open_config_dir");
+  });
+
   it("calls set_animation_paused with the expected payload", async () => {
     const { invoke } = await import("@tauri-apps/api/core");
     const { setAnimationPaused } = await import("./commands");
