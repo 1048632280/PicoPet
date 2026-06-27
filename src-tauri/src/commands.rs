@@ -1,9 +1,30 @@
 use crate::{
     config::AppConfig,
+    main_window::MAIN_WINDOW_LABEL,
     state::AppState,
     window_position::{normalize_position_for_screens, screens_with_primary_first, ScreenRect},
 };
-use tauri::{Manager, State, WebviewWindow, Window};
+use tauri::{AppHandle, Emitter, Manager, State, WebviewWindow, Window};
+
+pub const CONFIG_EVENT: &str = "picopet://config";
+
+const SUPPORTED_BEHAVIOR_PRESETS: [&str; 3] = ["quiet", "normal", "lively"];
+const SUPPORTED_WALK_MODES: [&str; 2] = ["stationary", "short_range"];
+const MIN_SLEEP_AFTER_IDLE_SECONDS: u32 = 60;
+const MAX_SLEEP_AFTER_IDLE_SECONDS: u32 = 86_400;
+
+fn emit_config(app: &AppHandle, config: &AppConfig) {
+    let _ = app.emit(CONFIG_EVENT, config.clone());
+}
+
+fn main_window_missing_error() -> String {
+    format!("{MAIN_WINDOW_LABEL} window is missing")
+}
+
+fn get_main_window(app: &AppHandle) -> Result<WebviewWindow, String> {
+    app.get_webview_window(MAIN_WINDOW_LABEL)
+        .ok_or_else(main_window_missing_error)
+}
 
 fn save_updated_config(
     state: &State<AppState>,
@@ -20,6 +41,48 @@ fn save_updated_config(
         .save(&guard)
         .map_err(|error| error.to_string())?;
     Ok(guard.clone())
+}
+
+fn save_updated_config_and_emit(
+    state: &State<AppState>,
+    app: &AppHandle,
+    update: impl FnOnce(&mut AppConfig) -> Result<(), String>,
+) -> Result<AppConfig, String> {
+    let mut guard = state
+        .config
+        .lock()
+        .map_err(|_| "config lock is poisoned".to_string())?;
+    update(&mut guard)?;
+    *guard = guard.clone().sanitized();
+    state
+        .store
+        .save(&guard)
+        .map_err(|error| error.to_string())?;
+    let config = guard.clone();
+    drop(guard);
+    emit_config(app, &config);
+    Ok(config)
+}
+
+fn apply_behavior_preset(config: &mut AppConfig, preset: &str) -> Result<(), String> {
+    if !SUPPORTED_BEHAVIOR_PRESETS.contains(&preset) {
+        return Err(format!("unsupported behavior preset: {preset}"));
+    }
+    config.behavior.preset = preset.to_string();
+    Ok(())
+}
+
+fn apply_walk_mode(config: &mut AppConfig, walk_mode: &str) -> Result<(), String> {
+    if !SUPPORTED_WALK_MODES.contains(&walk_mode) {
+        return Err(format!("unsupported walk mode: {walk_mode}"));
+    }
+    config.behavior.walk_mode = walk_mode.to_string();
+    Ok(())
+}
+
+fn apply_sleep_after_idle_seconds(config: &mut AppConfig, seconds: u32) {
+    config.behavior.sleep_after_idle_seconds =
+        seconds.clamp(MIN_SLEEP_AFTER_IDLE_SECONDS, MAX_SLEEP_AFTER_IDLE_SECONDS);
 }
 
 fn persist_window_position(config: &mut AppConfig, x: i32, y: i32) {
@@ -47,15 +110,28 @@ pub fn get_app_config(state: State<AppState>) -> Result<AppConfig, String> {
 }
 
 #[tauri::command]
-pub fn set_animation_paused(paused: bool, state: State<AppState>) -> Result<AppConfig, String> {
-    save_updated_config(&state, |config| {
+pub fn set_animation_paused(
+    paused: bool,
+    app: AppHandle,
+    state: State<AppState>,
+) -> Result<AppConfig, String> {
+    save_updated_config_and_emit(&state, &app, |config| {
         config.animation.paused = paused;
+        Ok(())
     })
 }
 
 #[tauri::command]
-pub fn save_window_position(x: i32, y: i32, state: State<AppState>) -> Result<AppConfig, String> {
-    save_window_position_from_coordinates(x, y, state)
+pub fn save_window_position(
+    x: i32,
+    y: i32,
+    app: AppHandle,
+    state: State<AppState>,
+) -> Result<AppConfig, String> {
+    save_updated_config_and_emit(&state, &app, |config| {
+        persist_window_position(config, x, y);
+        Ok(())
+    })
 }
 
 pub fn save_current_window_position(
@@ -95,13 +171,8 @@ fn screen_from_monitor(monitor: &tauri::Monitor) -> ScreenRect {
 fn derive_window_geometry_config(config: &AppConfig, screens: &[ScreenRect]) -> AppConfig {
     let mut visible = config.clone();
     let side = visible.scaled_window_side();
-    let (x, y) = normalize_position_for_screens(
-        visible.window.x,
-        visible.window.y,
-        side,
-        side,
-        screens,
-    );
+    let (x, y) =
+        normalize_position_for_screens(visible.window.x, visible.window.y, side, side, screens);
     visible.window.x = x;
     visible.window.y = y;
     visible
@@ -138,10 +209,8 @@ fn apply_window_geometry(window: &WebviewWindow, config: &AppConfig) -> Result<A
 }
 
 #[tauri::command]
-pub fn reset_window_position(
-    window: WebviewWindow,
-    state: State<AppState>,
-) -> Result<AppConfig, String> {
+pub fn reset_window_position(app: AppHandle, state: State<AppState>) -> Result<AppConfig, String> {
+    let window = get_main_window(&app)?;
     let monitor = window
         .primary_monitor()
         .map_err(|error| error.to_string())?;
@@ -157,18 +226,20 @@ pub fn reset_window_position(
         .placed_at_bottom_right(width, height);
     let visible_config = apply_window_geometry(&window, &config)?;
 
-    save_updated_config(&state, |current| {
+    save_updated_config_and_emit(&state, &app, |current| {
         current.window.x = visible_config.window.x;
         current.window.y = visible_config.window.y;
+        Ok(())
     })
 }
 
 #[tauri::command]
 pub fn set_window_scale(
     scale: f64,
-    window: WebviewWindow,
+    app: AppHandle,
     state: State<AppState>,
 ) -> Result<AppConfig, String> {
+    let window = get_main_window(&app)?;
     let next_config = state
         .config
         .lock()
@@ -178,31 +249,34 @@ pub fn set_window_scale(
 
     let visible_config = apply_window_geometry(&window, &next_config)?;
 
-    save_updated_config(&state, |config| {
+    save_updated_config_and_emit(&state, &app, |config| {
         config.window.scale = visible_config.window.scale;
         config.window.x = visible_config.window.x;
         config.window.y = visible_config.window.y;
+        Ok(())
     })
 }
 
 #[tauri::command]
 pub fn set_click_through(
     enabled: bool,
-    window: WebviewWindow,
+    app: AppHandle,
     state: State<AppState>,
 ) -> Result<AppConfig, String> {
+    let window = get_main_window(&app)?;
     #[cfg(target_os = "windows")]
     crate::platform::windows::set_click_through(&window, enabled)?;
 
-    save_updated_config(&state, |config| {
+    save_updated_config_and_emit(&state, &app, |config| {
         config.window.click_through = enabled;
+        Ok(())
     })
 }
 
 #[tauri::command]
 pub fn set_launch_on_login(
     enabled: bool,
-    app: tauri::AppHandle,
+    app: AppHandle,
     state: State<AppState>,
 ) -> Result<AppConfig, String> {
     #[cfg(target_os = "windows")]
@@ -214,9 +288,57 @@ pub fn set_launch_on_login(
 
     crate::logging::append_log(&app, &format!("开机自启动设置为: {enabled}"));
 
-    save_updated_config(&state, |config| {
+    save_updated_config_and_emit(&state, &app, |config| {
         config.startup.launch_on_login = enabled;
+        Ok(())
     })
+}
+
+#[tauri::command]
+pub fn set_behavior_preset(
+    preset: String,
+    app: AppHandle,
+    state: State<AppState>,
+) -> Result<AppConfig, String> {
+    save_updated_config_and_emit(&state, &app, |config| {
+        apply_behavior_preset(config, &preset)
+    })
+}
+
+#[tauri::command]
+pub fn set_walk_mode(
+    walk_mode: String,
+    app: AppHandle,
+    state: State<AppState>,
+) -> Result<AppConfig, String> {
+    save_updated_config_and_emit(&state, &app, |config| apply_walk_mode(config, &walk_mode))
+}
+
+#[tauri::command]
+pub fn set_sleep_after_idle_seconds(
+    seconds: u32,
+    app: AppHandle,
+    state: State<AppState>,
+) -> Result<AppConfig, String> {
+    save_updated_config_and_emit(&state, &app, |config| {
+        apply_sleep_after_idle_seconds(config, seconds);
+        Ok(())
+    })
+}
+
+#[tauri::command]
+pub fn open_config_dir(app: AppHandle, state: State<AppState>) -> Result<(), String> {
+    std::process::Command::new("explorer")
+        .arg(&state.data_dir)
+        .spawn()
+        .map_err(|error| error.to_string())?;
+    crate::logging::append_log(&app, "设置窗口打开配置目录");
+    Ok(())
+}
+
+#[tauri::command]
+pub fn open_settings_window(app: AppHandle, state: State<AppState>) -> Result<(), String> {
+    crate::settings_window::open_settings_window(&app, &state.data_dir).map(|_| ())
 }
 
 #[cfg(test)]
@@ -237,6 +359,72 @@ mod tests {
         assert_eq!(config.window.scale, 1.5);
         assert!(config.window.click_through);
         assert!(config.animation.paused);
+    }
+
+    #[test]
+    fn behavior_preset_update_accepts_supported_values() {
+        for preset in ["quiet", "normal", "lively"] {
+            let mut config = AppConfig::default();
+
+            apply_behavior_preset(&mut config, preset).unwrap();
+
+            assert_eq!(config.behavior.preset, preset);
+        }
+    }
+
+    #[test]
+    fn behavior_preset_update_rejects_unknown_values() {
+        let mut config = AppConfig::default();
+
+        let error = apply_behavior_preset(&mut config, "loud").unwrap_err();
+
+        assert!(error.contains("unsupported behavior preset"));
+        assert_eq!(config.behavior.preset, "quiet");
+    }
+
+    #[test]
+    fn walk_mode_update_accepts_supported_values() {
+        for walk_mode in ["stationary", "short_range"] {
+            let mut config = AppConfig::default();
+
+            apply_walk_mode(&mut config, walk_mode).unwrap();
+
+            assert_eq!(config.behavior.walk_mode, walk_mode);
+        }
+    }
+
+    #[test]
+    fn walk_mode_update_rejects_roaming_and_unknown_values() {
+        for walk_mode in ["roaming", "teleport"] {
+            let mut config = AppConfig::default();
+
+            let error = apply_walk_mode(&mut config, walk_mode).unwrap_err();
+
+            assert!(error.contains("unsupported walk mode"));
+            assert_eq!(config.behavior.walk_mode, "short_range");
+        }
+    }
+
+    #[test]
+    fn sleep_timeout_update_clamps_to_supported_range() {
+        let mut low = AppConfig::default();
+        apply_sleep_after_idle_seconds(&mut low, 5);
+        assert_eq!(low.behavior.sleep_after_idle_seconds, 60);
+
+        let mut high = AppConfig::default();
+        apply_sleep_after_idle_seconds(&mut high, 100_000);
+        assert_eq!(high.behavior.sleep_after_idle_seconds, 86_400);
+
+        let mut normal = AppConfig::default();
+        apply_sleep_after_idle_seconds(&mut normal, 1200);
+        assert_eq!(normal.behavior.sleep_after_idle_seconds, 1200);
+    }
+
+    #[test]
+    fn main_window_missing_error_names_main_window() {
+        let error = main_window_missing_error();
+
+        assert!(error.contains("main window is missing"));
     }
 
     #[test]

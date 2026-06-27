@@ -1,0 +1,93 @@
+:root {
+  font-family:
+    "Microsoft YaHei",
+    "Segoe UI",
+    system-ui,
+    sans-serif;
+  color: #1f2933;
+  background: #f6f8fb;
+  font-size: 14px;
+}
+
+* {
+  box-sizing: border-box;
+}
+
+body {
+  margin: 0;
+  min-width: 320px;
+  min-height: 420px;
+}
+
+.settings-root {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  padding: 16px;
+}
+
+.settings-section {
+  display: grid;
+  gap: 10px;
+  padding: 12px;
+  border: 1px solid #d7dde6;
+  border-radius: 8px;
+  background: #ffffff;
+}
+
+.settings-section h2 {
+  margin: 0 0 2px;
+  font-size: 14px;
+  font-weight: 700;
+}
+
+label,
+.settings-row {
+  display: grid;
+  grid-template-columns: minmax(92px, 1fr) minmax(120px, 160px);
+  align-items: center;
+  gap: 12px;
+}
+
+select,
+input[type="number"],
+button {
+  width: 100%;
+  min-height: 30px;
+  border: 1px solid #c4ceda;
+  border-radius: 6px;
+  background: #ffffff;
+  color: #1f2933;
+  font: inherit;
+}
+
+input[type="checkbox"] {
+  justify-self: end;
+  width: 18px;
+  height: 18px;
+}
+
+button {
+  cursor: pointer;
+  background: #eef3f8;
+}
+
+button:hover:not(:disabled),
+select:hover:not(:disabled),
+input:hover:not(:disabled) {
+  border-color: #8aa0b8;
+}
+
+button:disabled,
+select:disabled,
+input:disabled {
+  cursor: wait;
+  opacity: 0.65;
+}
+
+.settings-status {
+  min-height: 18px;
+  margin: 0;
+  color: #9a3412;
+  font-size: 12px;
+}

@@ -2,11 +2,12 @@ use crate::{commands, state::AppState};
 use tauri::{
     menu::{Menu, MenuItem},
     tray::TrayIconBuilder,
-    AppHandle, Emitter, Manager, WebviewWindow, Wry,
+    AppHandle, Manager, WebviewWindow, Wry,
 };
 
 const PAUSE_ID: &str = "toggle_pause";
 const CLICK_THROUGH_ID: &str = "toggle_click_through";
+const SETTINGS_ID: &str = "settings";
 const RESET_ID: &str = "reset_position";
 const SCALE_UP_ID: &str = "scale_up";
 const SCALE_DOWN_ID: &str = "scale_down";
@@ -45,6 +46,7 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         true,
         None::<&str>,
     )?;
+    let settings = MenuItem::with_id(app, SETTINGS_ID, "设置", true, None::<&str>)?;
     let reset = MenuItem::with_id(app, RESET_ID, "重置位置", true, None::<&str>)?;
     let scale_up = MenuItem::with_id(app, SCALE_UP_ID, "放大", true, None::<&str>)?;
     let scale_down = MenuItem::with_id(app, SCALE_DOWN_ID, "缩小", true, None::<&str>)?;
@@ -70,6 +72,7 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
         &[
             &pause,
             &click_through,
+            &settings,
             &reset,
             &scale_up,
             &scale_down,
@@ -108,6 +111,7 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
             }
             MenuEventAction::UseApp => {
                 match event_id {
+                    SETTINGS_ID => open_settings_window(app),
                     LAUNCH_ON_LOGIN_ID => toggle_launch_on_login(app, &launch_on_login_item),
                     OPEN_CONFIG_ID => open_config_dir(app),
                     _ => {}
@@ -117,17 +121,13 @@ pub fn setup_tray(app: &AppHandle) -> tauri::Result<()> {
             MenuEventAction::UseMainWindow => {}
         }
 
-        let Some(window) = app.get_webview_window("main") else {
-            return;
-        };
-
         match event_id {
             PAUSE_ID => toggle_pause(app, &pause_item),
-            CLICK_THROUGH_ID => toggle_click_through(app, &window, &click_through_item),
-            RESET_ID => reset_position(app, window),
-            SCALE_UP_ID => scale_window(app, window, scale_up_value),
-            SCALE_DOWN_ID => scale_window(app, window, scale_down_value),
-            SCALE_RESET_ID => scale_window(app, window, |_| 1.0),
+            CLICK_THROUGH_ID => toggle_click_through(app, &click_through_item),
+            RESET_ID => reset_position(app),
+            SCALE_UP_ID => scale_window(app, scale_up_value),
+            SCALE_DOWN_ID => scale_window(app, scale_down_value),
+            SCALE_RESET_ID => scale_window(app, |_| 1.0),
             _ => {}
         }
     });
@@ -162,7 +162,7 @@ fn launch_on_login_label(enabled: bool) -> &'static str {
 fn menu_event_action(id: &str) -> MenuEventAction {
     match id {
         EXIT_ID => MenuEventAction::PersistWindowPositionAndExit,
-        LAUNCH_ON_LOGIN_ID | OPEN_CONFIG_ID | ABOUT_ID => MenuEventAction::UseApp,
+        SETTINGS_ID | LAUNCH_ON_LOGIN_ID | OPEN_CONFIG_ID | ABOUT_ID => MenuEventAction::UseApp,
         _ => MenuEventAction::UseMainWindow,
     }
 }
@@ -183,10 +183,6 @@ fn scale_down_value(current: f64) -> f64 {
         .scale
 }
 
-fn emit_config(app: &AppHandle, config: crate::config::AppConfig) {
-    let _ = app.emit("picopet://config", config);
-}
-
 fn save_window_position_before_exit(_app: &AppHandle, window: WebviewWindow) {
     if let Err(error) = commands::persist_main_window_position(window) {
         eprintln!("退出前保存窗口位置失败: {error}");
@@ -200,26 +196,20 @@ fn toggle_pause(app: &AppHandle, pause_item: &MenuItem<Wry>) {
         .lock()
         .map(|config| !config.animation.paused)
         .unwrap_or(false);
-    if let Ok(config) = commands::set_animation_paused(paused, state) {
+    if let Ok(config) = commands::set_animation_paused(paused, app.clone(), state) {
         let _ = pause_item.set_text(pause_label(config.animation.paused));
-        emit_config(app, config);
     }
 }
 
-fn toggle_click_through(
-    app: &AppHandle,
-    window: &WebviewWindow,
-    click_through_item: &MenuItem<Wry>,
-) {
+fn toggle_click_through(app: &AppHandle, click_through_item: &MenuItem<Wry>) {
     let state = app.state::<AppState>();
     let enabled = state
         .config
         .lock()
         .map(|config| !config.window.click_through)
         .unwrap_or(false);
-    if let Ok(config) = commands::set_click_through(enabled, window.clone(), state) {
+    if let Ok(config) = commands::set_click_through(enabled, app.clone(), state) {
         let _ = click_through_item.set_text(click_through_label(config.window.click_through));
-        emit_config(app, config);
     }
 }
 
@@ -233,7 +223,6 @@ fn toggle_launch_on_login(app: &AppHandle, launch_on_login_item: &MenuItem<Wry>)
     if let Ok(config) = commands::set_launch_on_login(enabled, app.clone(), state) {
         let _ =
             launch_on_login_item.set_text(launch_on_login_label(config.startup.launch_on_login));
-        emit_config(app, config.clone());
         crate::logging::append_log(
             app,
             &format!(
@@ -246,29 +235,29 @@ fn toggle_launch_on_login(app: &AppHandle, launch_on_login_item: &MenuItem<Wry>)
 
 fn open_config_dir(app: &AppHandle) {
     let state = app.state::<AppState>();
-    let _ = std::process::Command::new("explorer")
-        .arg(&state.data_dir)
-        .spawn();
-    crate::logging::append_log(app, "打开配置目录");
+    let _ = commands::open_config_dir(app.clone(), state);
 }
 
-fn reset_position(app: &AppHandle, window: WebviewWindow) {
+fn open_settings_window(app: &AppHandle) {
     let state = app.state::<AppState>();
-    if let Ok(config) = commands::reset_window_position(window, state) {
-        emit_config(app, config);
+    if let Err(error) = commands::open_settings_window(app.clone(), state) {
+        crate::logging::append_log(app, &format!("打开设置窗口失败: {error}"));
     }
 }
 
-fn scale_window(app: &AppHandle, window: WebviewWindow, next_scale: impl FnOnce(f64) -> f64) {
+fn reset_position(app: &AppHandle) {
+    let state = app.state::<AppState>();
+    let _ = commands::reset_window_position(app.clone(), state);
+}
+
+fn scale_window(app: &AppHandle, next_scale: impl FnOnce(f64) -> f64) {
     let state = app.state::<AppState>();
     let current_scale = state
         .config
         .lock()
         .map(|config| config.window.scale)
         .unwrap_or(1.0);
-    if let Ok(config) = commands::set_window_scale(next_scale(current_scale), window, state) {
-        emit_config(app, config);
-    }
+    let _ = commands::set_window_scale(next_scale(current_scale), app.clone(), state);
 }
 
 #[cfg(test)]
@@ -291,6 +280,11 @@ mod tests {
     fn launch_on_login_label_matches_current_startup_state() {
         assert_eq!(launch_on_login_label(true), "关闭开机自启动");
         assert_eq!(launch_on_login_label(false), "开启开机自启动");
+    }
+
+    #[test]
+    fn settings_menu_event_uses_app() {
+        assert_eq!(menu_event_action(SETTINGS_ID), MenuEventAction::UseApp);
     }
 
     #[test]

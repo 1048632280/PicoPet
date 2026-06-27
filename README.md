@@ -88,7 +88,31 @@ Supported behavior values:
 - `walk_mode`: `stationary`, `short_range`
 - `sleep_after_idle_seconds`: `60` to `86400`
 
-`v0.2.1` supports `quiet`, `normal`, and `lively` behavior presets, plus `stationary` and `short_range` walk modes. `roaming` remains planned for a later behavior release. The future settings window is planned for `v0.3`.
+## Settings Window
+
+PicoPet v0.3 adds a lightweight settings window from the tray menu item `设置`.
+
+The settings window writes to the same portable config file used by manual editing:
+
+```text
+PicoPet/data/config.json
+```
+
+Available settings:
+
+- Behavior preset: `quiet`, `normal`, `lively`
+- Walk mode: `stationary`, `short_range`
+- Sleep wait time: `60` to `86400` seconds
+- Click-through
+- Pause animation
+- Window scale: `50%` to `200%`
+- Reset position
+- Launch on login
+- Open config directory
+
+Manual editing of `PicoPet/data/config.json` remains available for advanced users. `roaming` is not exposed in v0.3.
+
+`v0.2.1` supports `quiet`, `normal`, and `lively` behavior presets, plus `stationary` and `short_range` walk modes. `roaming` remains planned for a later behavior release.
 
 ## QA
 
@@ -98,7 +122,7 @@ pnpm portable:windows
 pnpm memory:windows
 ```
 
-Use `docs/qa/windows-v0.2.1-checklist.md` as the primary v0.2.1 manual QA checklist before tagging a Beta build; use `docs/qa/windows-installer-checklist.md` for installer-specific QA and `docs/qa/memory-baseline.md` for memory records.
+Use `docs/qa/windows-v0.3-settings-checklist.md` for v0.3 settings window QA, `docs/qa/windows-v0.2.1-checklist.md` as the primary v0.2.1 manual QA checklist before tagging a Beta build, `docs/qa/windows-installer-checklist.md` for installer-specific QA, and `docs/qa/memory-baseline.md` for memory records.
 `docs/qa/windows-alpha-checklist.md` is historical Alpha documentation only and is not part of active Beta release QA.
 
 ## Scope
