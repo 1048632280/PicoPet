@@ -151,10 +151,10 @@ function expectLastWindowPosition(x: number, y: number) {
   expect(latestCall?.[0]).toEqual(expect.objectContaining({ x, y }));
 }
 
-function deferredVoid() {
+function deferredUndefined() {
   let resolve!: () => void;
-  const promise = new Promise<void>((next) => {
-    resolve = next;
+  const promise = new Promise<undefined>((next) => {
+    resolve = () => next(undefined);
   });
   return { promise, resolve };
 }
@@ -365,7 +365,7 @@ describe("boot", () => {
     runLatestAnimationFrame(240000);
     await flushNativeDragFlow();
     windowApiMocks.setPosition.mockClear();
-    const staleWalkMove = deferredVoid();
+    const staleWalkMove = deferredUndefined();
     windowApiMocks.setPosition.mockImplementationOnce(() => staleWalkMove.promise);
     const listener = eventMocks.listen.mock.calls.find(([eventName]) => eventName === "picopet://config")?.[1];
 
