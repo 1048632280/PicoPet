@@ -32,7 +32,7 @@
 | Artifact | Size |
 | --- | ---: |
 | `src-tauri/target/release/picopet.exe` | 9,184,256 bytes |
-| `src-tauri/target/release/bundle/nsis/PicoPet_0.4.0_x64-setup.exe` | 1,963,710 bytes |
+| `src-tauri/target/release/bundle/nsis/PicoPet_0.4.0_x64-setup.exe` | 1,963,826 bytes |
 | `src-tauri/target/release/bundle/portable/PicoPet_0.4.0_x64-portable.zip` | 2,680,251 bytes |
 
 ## GitHub Release Asset Verification
@@ -51,6 +51,14 @@
 - First launch created `data/config.json`, `data/picopet.log`, and `data/EBWebView/` under the install directory.
 - Overwrite silent install exited `0` and preserved the `config.json` SHA-256 hash.
 - Silent uninstall exited `0`, removed installed app files, left `data/` in place, and left `0` PicoPet processes running.
+
+## Stable Promotion Gate
+
+- Final stable promotion gate: `pnpm release:windows:gate`
+- Final promotion result: Pass
+- `picopet.exe`: 9,184,256 bytes, `sha256:2cd91473cbc3e749c70ed3d8235d451a38d06234448f3d37e7012c25f84d96ac`
+- `PicoPet_0.4.0_x64-setup.exe`: 1,963,826 bytes, `sha256:adaa2e50365f7a3dd1cb23be6f330f2a39c6f67f3e5b696f8324de1b0b5f249e`
+- `PicoPet_0.4.0_x64-portable.zip`: 2,680,251 bytes, `sha256:bd6196736debfff5a727c925b8ea6e0723b4557adb84fdb2cabe12666becc657`
 
 ## Memory Baseline
 
@@ -74,9 +82,10 @@
 - Maintenance regression checklist: `docs/qa/windows-v0.3.1-maintenance-checklist.md`
 - Settings regression checklist: `docs/qa/windows-v0.3-settings-checklist.md`
 - Installer checklist: `docs/qa/windows-installer-checklist.md`
-- Result: Pending user validation before final stable release.
-- Notes: Automated RC preparation passed. Manual behavior-expression, installer, and settings regression checks remain required before promoting this build to stable.
+- Result: Pass
+- Tester: User manual validation in Codex thread
+- Notes: User confirmed the v0.4.0 RC manual validation passed on 2026-07-01 after testing behavior expression, installer, and regression-critical flows.
 
 ## Result
 
-The v0.4.0 release candidate automated checks passed. The build is ready for manual QA and RC tagging.
+The v0.4.0 release candidate automated checks, release asset smoke checks, installer smoke checks, memory baseline, and user manual QA passed. The build is accepted for stable `v0.4.0` promotion.
