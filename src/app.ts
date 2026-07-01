@@ -162,7 +162,7 @@ export async function boot(): Promise<string> {
           .finally(() => {
             if (currentWalkMoveToken === walkMoveToken) {
               walkMovePending = false;
-            } else if (behavior.snapshot().state !== "walk") {
+            } else if (!activeWalkMovesWindow) {
               void moveWindowTo(appWindow, anchorPosition.x, anchorPosition.y).catch(() => undefined);
             }
           });

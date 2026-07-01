@@ -151,6 +151,14 @@ function expectLastWindowPosition(x: number, y: number) {
   expect(latestCall?.[0]).toEqual(expect.objectContaining({ x, y }));
 }
 
+function deferredVoid() {
+  let resolve!: () => void;
+  const promise = new Promise<void>((next) => {
+    resolve = next;
+  });
+  return { promise, resolve };
+}
+
 describe("boot", () => {
   it("marks the pet canvas as ready", async () => {
     mockCanvasContext();
@@ -342,6 +350,45 @@ describe("boot", () => {
     });
     await flushNativeDragFlow();
 
+    expectLastWindowPosition(1200, 680);
+  });
+
+  it("re-anchors when stale short-range movement resolves after switching to stationary walk", async () => {
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    mockCanvasContext();
+    const images = mockImageLoading();
+    document.body.innerHTML = '<canvas id="pet-canvas"></canvas>';
+    const { boot } = await import("./app");
+
+    await boot();
+    images[0].onload?.();
+    runLatestAnimationFrame(240000);
+    await flushNativeDragFlow();
+    windowApiMocks.setPosition.mockClear();
+    const staleWalkMove = deferredVoid();
+    windowApiMocks.setPosition.mockImplementationOnce(() => staleWalkMove.promise);
+    const listener = eventMocks.listen.mock.calls.find(([eventName]) => eventName === "picopet://config")?.[1];
+
+    runLatestAnimationFrame(243000);
+    expectLastWindowPosition(1240, 680);
+    listener?.({
+      event: "picopet://config",
+      id: 1,
+      payload: {
+        ...cloneDefaultConfig(),
+        behavior: {
+          ...defaultConfig.behavior,
+          walk_mode: "stationary"
+        }
+      }
+    });
+    await flushNativeDragFlow();
+    expectLastWindowPosition(1200, 680);
+
+    staleWalkMove.resolve();
+    await flushNativeDragFlow();
+
+    expect(windowApiMocks.setPosition).toHaveBeenCalledTimes(3);
     expectLastWindowPosition(1200, 680);
   });
 
