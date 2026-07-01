@@ -57,6 +57,22 @@ describe("renderEffectForState", () => {
     expect(Math.abs(stable.scale - 1)).toBeLessThanOrEqual(profile.sleepBreathScaleAmplitude);
   });
 
+  it("keeps sleep transition continuous at the stable boundary", () => {
+    const profile = createBehaviorProfile("quiet");
+    const beforeBoundary = renderEffectForState("sleep", profile.sleepTransitionMs - 1, profile);
+    const atBoundary = renderEffectForState("sleep", profile.sleepTransitionMs, profile);
+    const afterBoundary = renderEffectForState("sleep", profile.sleepTransitionMs + 1, profile);
+
+    for (const [from, to] of [
+      [beforeBoundary, atBoundary],
+      [atBoundary, afterBoundary]
+    ]) {
+      expect(Math.abs(to.scale - from.scale)).toBeLessThan(0.01);
+      expect(Math.abs(to.scaleY - from.scaleY)).toBeLessThan(0.01);
+      expect(Math.abs(to.offsetY - from.offsetY)).toBeLessThan(0.75);
+    }
+  });
+
   it("keeps dragged visually held with non-uniform compression", () => {
     const effect = renderEffectForState("dragged", 100, createBehaviorProfile("normal"));
 

@@ -90,17 +90,19 @@ export function renderEffectForState(
   if (state === "sleep") {
     const progress = clamp01(elapsedMs / Math.max(1, profile.sleepTransitionMs));
     if (progress < 1) {
+      const sag = Math.sin(progress * Math.PI);
       return effect({
-        scale: 1 - 0.015 * progress,
-        scaleY: 1 - 0.035 * progress,
-        rotationDeg: profile.idleRotationDeg * 0.4 * progress,
-        offsetY: profile.sleepBreathOffsetYPx * progress,
+        scale: 1 - 0.015 * sag,
+        scaleY: 1 - 0.035 * sag,
+        rotationDeg: profile.idleRotationDeg * 0.4 * sag,
+        offsetY: profile.sleepBreathOffsetYPx * sag,
         alpha: 1 - (1 - profile.sleepStableAlpha) * progress,
         fpsMultiplier: 0.55 - 0.2 * progress
       });
     }
 
-    const breath = Math.sin((elapsedMs / 2200) * TWO_PI);
+    const stableElapsed = elapsedMs - profile.sleepTransitionMs;
+    const breath = Math.sin((stableElapsed / 2200) * TWO_PI);
     return effect({
       scale: 1 + profile.sleepBreathScaleAmplitude * breath,
       scaleY: 1 - profile.sleepBreathScaleAmplitude * 0.5 * breath,
