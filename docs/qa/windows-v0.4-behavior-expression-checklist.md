@@ -66,6 +66,7 @@
 - [ ] Confirm no cmd/conhost window appears when launching installed app normally.
 - [ ] Confirm tray menu can pause and resume animation.
 - [ ] Confirm click-through prevents pointer interaction with the pet.
+- [ ] Confirm `behavior.enabled=false` stays visually neutral with no autonomous expression.
 - [ ] Confirm scale changes still resize the canvas correctly.
 - [ ] Confirm settings window opens and saves behavior settings.
 - [ ] Confirm `roaming`, coordinate editing, FPS editing, JSON editing, update checker, plugin features, and skin import are not exposed.

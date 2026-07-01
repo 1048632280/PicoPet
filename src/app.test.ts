@@ -523,6 +523,45 @@ describe("boot", () => {
     expect(windowApiMocks.startDragging).toHaveBeenCalledTimes(1);
   });
 
+  it("keeps rendered transforms neutral while behavior is disabled", async () => {
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    const context = mockCanvasContext();
+    const images = mockImageLoading();
+    windowApiMocks.outerPosition
+      .mockResolvedValueOnce({ x: 1200, y: 680 })
+      .mockResolvedValueOnce({ x: 1230, y: 680 });
+    commandMocks.saveWindowPosition.mockResolvedValue({
+      ...cloneDefaultConfig(),
+      window: {
+        ...defaultConfig.window,
+        x: 1230,
+        y: 680
+      }
+    });
+    commandMocks.getAppConfig.mockResolvedValue({
+      ...cloneDefaultConfig(),
+      behavior: {
+        ...defaultConfig.behavior,
+        enabled: false
+      }
+    });
+    document.body.innerHTML = '<canvas id="pet-canvas"></canvas>';
+    const { boot } = await import("./app");
+
+    await boot();
+    images[0].onload?.();
+    document.querySelector<HTMLCanvasElement>("#pet-canvas")?.dispatchEvent(
+      new MouseEvent("pointerdown", { button: 0 })
+    );
+    await flushNativeDragFlow();
+    runLatestAnimationFrame(180);
+
+    const latestScale = context.scale.mock.calls[context.scale.mock.calls.length - 1] as [number, number];
+    const rotations = context.rotate.mock.calls.map(([rotation]) => rotation);
+    expect(latestScale).toEqual([1, 1]);
+    expect(rotations.every((rotation) => rotation === 0)).toBe(true);
+  });
+
   it("applies tray config scale changes to the canvas size", async () => {
     mockCanvasContext();
     document.body.innerHTML = '<canvas id="pet-canvas"></canvas>';

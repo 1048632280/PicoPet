@@ -7,7 +7,7 @@ import { frameIndexAt, shouldRenderFrame } from "./pet/animationClock";
 import { createAnimationLoop } from "./pet/animationLoop";
 import { normalizeAtlasManifest } from "./pet/atlas";
 import { createBehaviorController } from "./pet/behavior/controller";
-import { renderEffectForState } from "./pet/behavior/effects";
+import { defaultRenderEffect, renderEffectForState } from "./pet/behavior/effects";
 import { shortRangeWalkPosition } from "./pet/behavior/motion";
 import { createBehaviorProfile } from "./pet/behavior/timing";
 import type { BehaviorSnapshot } from "./pet/behavior/types";
@@ -134,10 +134,12 @@ export async function boot(): Promise<string> {
     const snapshot = syncBehaviorSnapshot(behavior.update(now));
     const elapsedInState = now - snapshot.stateStartedAt;
     const profile = createBehaviorProfile(snapshot.config.preset);
-    const effect = renderEffectForState(snapshot.state, elapsedInState, profile, {
-      now,
-      lastDragCompletedAt
-    });
+    const effect = snapshot.config.enabled
+      ? renderEffectForState(snapshot.state, elapsedInState, profile, {
+          now,
+          lastDragCompletedAt
+        })
+      : defaultRenderEffect();
     const effectiveFps = Math.max(1, Math.round(config.animation.idle_fps * effect.fpsMultiplier));
 
     if (snapshot.state === "walk" && snapshot.config.walk_mode === "short_range") {
