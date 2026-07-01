@@ -67,6 +67,7 @@ For Windows release builds, include:
 ## Acceptance Records
 
 - Windows Beta portable data acceptance: `docs/qa/windows-beta-portable-data-acceptance-2026-06-24.md`
+- Windows v0.4 behavior expression acceptance: `docs/qa/windows-v0.4-behavior-expression-acceptance-2026-07-01.md`
 - Windows v0.4 behavior expression QA: `docs/qa/windows-v0.4-behavior-expression-checklist.md`
 - Windows v0.3 settings acceptance: `docs/qa/windows-v0.3-settings-acceptance-2026-06-27.md`
 - Windows v0.3.1 maintenance QA: `docs/qa/windows-v0.3.1-maintenance-checklist.md`

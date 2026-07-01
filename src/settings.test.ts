@@ -344,7 +344,7 @@ describe("settings window", () => {
   it("shows diagnostics information", async () => {
     commandMocks.getAppConfig.mockResolvedValue(cloneDefaultConfig());
     commandMocks.getDiagnosticsInfo.mockResolvedValue({
-      version: "0.3.1",
+      version: "0.4.0",
       config_dir: "C:\\Tools\\PicoPet\\data",
       config_file: "C:\\Tools\\PicoPet\\data\\config.json",
       log_file: "C:\\Tools\\PicoPet\\data\\picopet.log"
@@ -356,7 +356,7 @@ describe("settings window", () => {
     await Promise.resolve();
 
     const diagnostics = control<HTMLElement>('[data-role="diagnostics"]');
-    expect(diagnostics.textContent).toContain("版本: 0.3.1");
+    expect(diagnostics.textContent).toContain("版本: 0.4.0");
     expect(diagnostics.textContent).toContain("配置目录");
     expect(diagnostics.textContent).toContain("picopet.log");
   });
