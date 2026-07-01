@@ -11,7 +11,26 @@ const QUIET_PROFILE: BehaviorProfile = {
   happyScaleBoost: 0.08,
   happyOffsetYPx: 6,
   happyFpsMultiplier: 1.5,
-  walkFpsMultiplier: 1.2
+  walkFpsMultiplier: 1.2,
+  idleBreathScaleAmplitude: 0.006,
+  idleFloatYPx: 1,
+  idleRotationDeg: 0.6,
+  idleCycleMs: 4400,
+  walkBounceYPx: 1.5,
+  walkSwayXPx: 1.5,
+  walkRotationDeg: 1.2,
+  walkScaleYAmplitude: 0.015,
+  sleepTransitionMs: 2400,
+  sleepStableAlpha: 0.84,
+  sleepBreathScaleAmplitude: 0.015,
+  sleepBreathOffsetYPx: 1,
+  happyRotationDeg: 1.5,
+  draggedScaleX: 1.03,
+  draggedScaleY: 0.94,
+  draggedOffsetYPx: 3,
+  dragReboundDurationMs: 360,
+  dragReboundScaleBoost: 0.025,
+  dragReboundOffsetYPx: 2
 };
 
 const NORMAL_PROFILE: BehaviorProfile = {
@@ -25,7 +44,26 @@ const NORMAL_PROFILE: BehaviorProfile = {
   happyScaleBoost: 0.1,
   happyOffsetYPx: 8,
   happyFpsMultiplier: 1.65,
-  walkFpsMultiplier: 1.3
+  walkFpsMultiplier: 1.3,
+  idleBreathScaleAmplitude: 0.01,
+  idleFloatYPx: 2,
+  idleRotationDeg: 1,
+  idleCycleMs: 3600,
+  walkBounceYPx: 2,
+  walkSwayXPx: 2.5,
+  walkRotationDeg: 2,
+  walkScaleYAmplitude: 0.025,
+  sleepTransitionMs: 2400,
+  sleepStableAlpha: 0.82,
+  sleepBreathScaleAmplitude: 0.02,
+  sleepBreathOffsetYPx: 1.5,
+  happyRotationDeg: 3,
+  draggedScaleX: 1.04,
+  draggedScaleY: 0.92,
+  draggedOffsetYPx: 4,
+  dragReboundDurationMs: 420,
+  dragReboundScaleBoost: 0.035,
+  dragReboundOffsetYPx: 3
 };
 
 const LIVELY_PROFILE: BehaviorProfile = {
@@ -39,7 +77,26 @@ const LIVELY_PROFILE: BehaviorProfile = {
   happyScaleBoost: 0.12,
   happyOffsetYPx: 10,
   happyFpsMultiplier: 1.8,
-  walkFpsMultiplier: 1.45
+  walkFpsMultiplier: 1.45,
+  idleBreathScaleAmplitude: 0.014,
+  idleFloatYPx: 3,
+  idleRotationDeg: 1.6,
+  idleCycleMs: 3000,
+  walkBounceYPx: 3,
+  walkSwayXPx: 3.5,
+  walkRotationDeg: 3.2,
+  walkScaleYAmplitude: 0.035,
+  sleepTransitionMs: 2400,
+  sleepStableAlpha: 0.8,
+  sleepBreathScaleAmplitude: 0.025,
+  sleepBreathOffsetYPx: 2,
+  happyRotationDeg: 4.5,
+  draggedScaleX: 1.05,
+  draggedScaleY: 0.9,
+  draggedOffsetYPx: 5,
+  dragReboundDurationMs: 480,
+  dragReboundScaleBoost: 0.045,
+  dragReboundOffsetYPx: 4
 };
 
 const PROFILES: Record<BehaviorPreset, BehaviorProfile> = {

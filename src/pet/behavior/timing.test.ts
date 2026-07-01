@@ -34,6 +34,30 @@ describe("behavior timing", () => {
     expect(normal.walkDistancePx).toBeLessThan(lively.walkDistancePx);
   });
 
+  it("returns ordered expression parameters for supported presets", () => {
+    const quiet = createBehaviorProfile("quiet");
+    const normal = createBehaviorProfile("normal");
+    const lively = createBehaviorProfile("lively");
+
+    expect(quiet.idleBreathScaleAmplitude).toBe(0.006);
+    expect(normal.idleBreathScaleAmplitude).toBe(0.01);
+    expect(lively.idleBreathScaleAmplitude).toBe(0.014);
+    expect(quiet.idleCycleMs).toBeGreaterThan(normal.idleCycleMs);
+    expect(normal.idleCycleMs).toBeGreaterThan(lively.idleCycleMs);
+    expect(quiet.walkRotationDeg).toBeLessThan(normal.walkRotationDeg);
+    expect(normal.walkRotationDeg).toBeLessThan(lively.walkRotationDeg);
+    expect(quiet.sleepTransitionMs).toBe(2400);
+    expect(normal.sleepTransitionMs).toBe(2400);
+    expect(lively.sleepTransitionMs).toBe(2400);
+    expect(quiet.happyRotationDeg).toBeLessThan(normal.happyRotationDeg);
+    expect(normal.happyRotationDeg).toBeLessThan(lively.happyRotationDeg);
+    expect(quiet.draggedScaleX).toBeGreaterThan(1);
+    expect(quiet.draggedScaleY).toBeLessThan(1);
+    expect(quiet.dragReboundDurationMs).toBe(360);
+    expect(normal.dragReboundDurationMs).toBe(420);
+    expect(lively.dragReboundDurationMs).toBe(480);
+  });
+
   it("falls back to quiet for unexpected preset strings", () => {
     expect(createBehaviorProfile("loud")).toEqual(createBehaviorProfile("quiet"));
   });
