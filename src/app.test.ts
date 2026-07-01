@@ -70,6 +70,7 @@ type ContextMock = CanvasRenderingContext2D & {
   save: ReturnType<typeof vi.fn>;
   restore: ReturnType<typeof vi.fn>;
   translate: ReturnType<typeof vi.fn>;
+  rotate: ReturnType<typeof vi.fn>;
   scale: ReturnType<typeof vi.fn>;
 };
 
@@ -100,6 +101,7 @@ function mockCanvasContext(): ContextMock {
     save: vi.fn(),
     restore: vi.fn(),
     translate: vi.fn(),
+    rotate: vi.fn(),
     scale: vi.fn(),
     beginPath: vi.fn(),
     arc: vi.fn(),
@@ -345,7 +347,7 @@ describe("boot", () => {
 
   it("does not move the window autonomously when walk mode is stationary", async () => {
     vi.spyOn(performance, "now").mockReturnValue(0);
-    mockCanvasContext();
+    const context = mockCanvasContext();
     const images = mockImageLoading();
     commandMocks.getAppConfig.mockResolvedValue({
       ...cloneDefaultConfig(),
@@ -360,9 +362,43 @@ describe("boot", () => {
     await boot();
     images[0].onload?.();
     runLatestAnimationFrame(240000);
+    runLatestAnimationFrame(240105);
     await flushNativeDragFlow();
 
     expect(windowApiMocks.setPosition).not.toHaveBeenCalled();
+    expect(context.scale).not.toHaveBeenLastCalledWith(1, 1);
+    expect(context.rotate).toHaveBeenCalled();
+  });
+
+  it("renders a short rebound after a completed drag", async () => {
+    vi.spyOn(performance, "now").mockReturnValue(0);
+    const context = mockCanvasContext();
+    const images = mockImageLoading();
+    windowApiMocks.outerPosition
+      .mockResolvedValueOnce({ x: 1200, y: 680 })
+      .mockResolvedValueOnce({ x: 1230, y: 680 });
+    commandMocks.saveWindowPosition.mockResolvedValue({
+      ...cloneDefaultConfig(),
+      window: {
+        ...defaultConfig.window,
+        x: 1230,
+        y: 680
+      }
+    });
+    document.body.innerHTML = '<canvas id="pet-canvas"></canvas>';
+    const { boot } = await import("./app");
+
+    await boot();
+    images[0].onload?.();
+    document.querySelector<HTMLCanvasElement>("#pet-canvas")?.dispatchEvent(
+      new MouseEvent("pointerdown", { button: 0 })
+    );
+    await flushNativeDragFlow();
+    runLatestAnimationFrame(180);
+
+    const latestScale = context.scale.mock.calls[context.scale.mock.calls.length - 1] as [number, number];
+    expect(latestScale[0]).toBeGreaterThan(1);
+    expect(latestScale[1]).toBeGreaterThan(1);
   });
 
   it("uses lively profile distance for autonomous short-range walk", async () => {
@@ -461,7 +497,9 @@ describe("boot", () => {
     });
     runLatestAnimationFrame(700);
 
-    expect(context.scale).toHaveBeenLastCalledWith(1, 1);
+    const latestScale = context.scale.mock.calls[context.scale.mock.calls.length - 1] as [number, number];
+    expect(latestScale[0]).toBeLessThan(1.03);
+    expect(latestScale[1]).toBeLessThan(1.03);
   });
 
   it("does not run behavior interactions while behavior is disabled", async () => {

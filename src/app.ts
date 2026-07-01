@@ -40,7 +40,8 @@ export async function boot(): Promise<string> {
   let walkDirection: 1 | -1 = 1;
   let walkMovePending = false;
   let walkMoveToken = 0;
-  let lastBehaviorState = behavior.snapshot().state;
+  let activeWalkMovesWindow = false;
+  let lastDragCompletedAt: number | null = null;
   const dragThresholdPx = 6;
 
   const applyCanvasScale = () => {
@@ -54,14 +55,15 @@ export async function boot(): Promise<string> {
     void moveWindowTo(appWindow, anchorPosition.x, anchorPosition.y).catch(() => undefined);
   };
   const syncBehaviorSnapshot = (snapshot: BehaviorSnapshot) => {
-    if (lastBehaviorState !== "walk" && snapshot.state === "walk") {
+    const nextWalkMovesWindow = snapshot.state === "walk" && snapshot.config.walk_mode === "short_range";
+    if (!activeWalkMovesWindow && nextWalkMovesWindow) {
       walkMoveToken += 1;
       walkMovePending = false;
     }
-    if (lastBehaviorState === "walk" && snapshot.state !== "walk") {
+    if (activeWalkMovesWindow && !nextWalkMovesWindow) {
       returnWindowToAnchor();
     }
-    lastBehaviorState = snapshot.state;
+    activeWalkMovesWindow = nextWalkMovesWindow;
     return snapshot;
   };
   const loop = createAnimationLoop({
@@ -100,12 +102,16 @@ export async function boot(): Promise<string> {
           x: config.window.x,
           y: config.window.y
         };
+        lastDragCompletedAt = finishedAt;
         syncBehaviorSnapshot(behavior.dragComplete(finishedAt));
       } else {
+        lastDragCompletedAt = null;
         syncBehaviorSnapshot(behavior.shortPress(finishedAt));
       }
     } catch {
-      syncBehaviorSnapshot(behavior.dragComplete(performance.now()));
+      const failedAt = performance.now();
+      lastDragCompletedAt = failedAt;
+      syncBehaviorSnapshot(behavior.dragComplete(failedAt));
     } finally {
       loop.sync();
     }
@@ -128,10 +134,13 @@ export async function boot(): Promise<string> {
     const snapshot = syncBehaviorSnapshot(behavior.update(now));
     const elapsedInState = now - snapshot.stateStartedAt;
     const profile = createBehaviorProfile(snapshot.config.preset);
-    const effect = renderEffectForState(snapshot.state, elapsedInState, profile);
+    const effect = renderEffectForState(snapshot.state, elapsedInState, profile, {
+      now,
+      lastDragCompletedAt
+    });
     const effectiveFps = Math.max(1, Math.round(config.animation.idle_fps * effect.fpsMultiplier));
 
-    if (snapshot.state === "walk") {
+    if (snapshot.state === "walk" && snapshot.config.walk_mode === "short_range") {
       const walkPosition = shortRangeWalkPosition(
         anchorPosition,
         elapsedInState,
