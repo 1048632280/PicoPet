@@ -35,7 +35,8 @@ export class PetRenderer {
       this.canvas.width / 2 + effect.offsetX,
       this.canvas.height / 2 + effect.offsetY
     );
-    this.context.scale(effect.scale, effect.scale);
+    this.context.rotate((effect.rotationDeg * Math.PI) / 180);
+    this.context.scale(effect.scale * effect.scaleX, effect.scale * effect.scaleY);
     this.context.drawImage(
       this.image,
       frameIndex * this.atlas.frame_width,

@@ -19,6 +19,7 @@ function createContextMock() {
     save: vi.fn(),
     restore: vi.fn(),
     translate: vi.fn(),
+    rotate: vi.fn(),
     scale: vi.fn(),
     fillStyle: "",
     globalAlpha: 1
@@ -27,6 +28,7 @@ function createContextMock() {
     save: ReturnType<typeof vi.fn>;
     restore: ReturnType<typeof vi.fn>;
     translate: ReturnType<typeof vi.fn>;
+    rotate: ReturnType<typeof vi.fn>;
     scale: ReturnType<typeof vi.fn>;
   };
 }
@@ -70,6 +72,9 @@ describe("PetRenderer", () => {
     renderer.setImage(image);
     renderer.renderFrame(0, {
       scale: 1.08,
+      scaleX: 1.02,
+      scaleY: 0.94,
+      rotationDeg: 10,
       offsetX: 2,
       offsetY: -4,
       alpha: 0.9,
@@ -80,7 +85,8 @@ describe("PetRenderer", () => {
     expect(canvas.height).toBe(128);
     expect(context.save).toHaveBeenCalledTimes(1);
     expect(context.translate).toHaveBeenCalledWith(66, 60);
-    expect(context.scale).toHaveBeenCalledWith(1.08, 1.08);
+    expect(context.rotate).toHaveBeenCalledWith((10 * Math.PI) / 180);
+    expect(context.scale).toHaveBeenCalledWith(1.08 * 1.02, 1.08 * 0.94);
     expect(context.drawImage).toHaveBeenCalledWith(image, 0, 0, 128, 128, -64, -64, 128, 128);
     expect(context.restore).toHaveBeenCalledTimes(1);
   });
