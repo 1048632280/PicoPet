@@ -35,6 +35,23 @@
 | `src-tauri/target/release/bundle/nsis/PicoPet_0.4.0_x64-setup.exe` | 1,963,710 bytes |
 | `src-tauri/target/release/bundle/portable/PicoPet_0.4.0_x64-portable.zip` | 2,680,251 bytes |
 
+## GitHub Release Asset Verification
+
+- Release: `v0.4.0-rc.1`
+- Release URL: `https://github.com/1048632280/PicoPet/releases/tag/v0.4.0-rc.1`
+- `PicoPet_0.4.0_x64-setup.exe`: 1,963,710 bytes, `sha256:d954d335e831a31772b0cd295668c754a8fd8c40c36d123fb7b45c6ef8578cbc`
+- `PicoPet_0.4.0_x64-portable.zip`: 2,680,251 bytes, `sha256:749a9fff3cbaf26dfbef03d6c668a63bc254e4675877dd5dca43a002db8f6937`
+- Downloaded release assets from GitHub and confirmed the portable zip contains `PicoPet/picopet.exe` and `PicoPet/data/`.
+
+## Installer Smoke
+
+- Installer source: GitHub Release asset `PicoPet_0.4.0_x64-setup.exe`.
+- Install target: `%TEMP%/PicoPetInstallerQA-v0.4.0-rc.1/PicoPet`.
+- Clean silent install exited `0` and installed `picopet.exe` plus `uninstall.exe`.
+- First launch created `data/config.json`, `data/picopet.log`, and `data/EBWebView/` under the install directory.
+- Overwrite silent install exited `0` and preserved the `config.json` SHA-256 hash.
+- Silent uninstall exited `0`, removed installed app files, left `data/` in place, and left `0` PicoPet processes running.
+
 ## Memory Baseline
 
 | Metric | Value |
