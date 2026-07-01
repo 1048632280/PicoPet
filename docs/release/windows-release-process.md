@@ -28,11 +28,12 @@ pnpm memory:windows -- -OutputJson docs/qa/memory-baseline.latest.json
 
 Run every item in:
 
+- `docs/qa/windows-v0.4-behavior-expression-checklist.md`
 - `docs/qa/windows-v0.3.1-maintenance-checklist.md`
 - `docs/qa/windows-v0.3-settings-checklist.md`
 - `docs/qa/windows-installer-checklist.md` for installer-specific QA
 
-Confirm the v0.3 checklist covers settings-window behavior, runtime regressions, and portable zip QA. Confirm the installer checklist covers clean install, overwrite install, and uninstall behavior with `PicoPet/data/`.
+Confirm the v0.4 checklist covers behavior expression, walk modes, runtime regressions, and portable data. Confirm the v0.3 checklist covers settings-window behavior and regression coverage. Confirm the installer checklist covers clean install, overwrite install, and uninstall behavior with `PicoPet/data/`.
 `docs/qa/windows-alpha-checklist.md` is retained as historical Alpha documentation only and is not part of active Beta release QA.
 
 ## Memory Baseline
@@ -66,6 +67,7 @@ For Windows release builds, include:
 ## Acceptance Records
 
 - Windows Beta portable data acceptance: `docs/qa/windows-beta-portable-data-acceptance-2026-06-24.md`
+- Windows v0.4 behavior expression QA: `docs/qa/windows-v0.4-behavior-expression-checklist.md`
 - Windows v0.3 settings acceptance: `docs/qa/windows-v0.3-settings-acceptance-2026-06-27.md`
 - Windows v0.3.1 maintenance QA: `docs/qa/windows-v0.3.1-maintenance-checklist.md`
 - Windows v0.3 settings QA: `docs/qa/windows-v0.3-settings-checklist.md`
