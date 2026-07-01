@@ -69,6 +69,10 @@ export function createBehaviorController(options: BehaviorControllerOptions): Be
     return snapshot.config.enabled && !snapshot.paused && !snapshot.hidden;
   }
 
+  function canEnterAutonomousWalk() {
+    return snapshot.config.walk_mode === "stationary" || snapshot.config.walk_mode === "short_range";
+  }
+
   function leaveWalk(now: number) {
     snapshot = {
       ...snapshot,
@@ -101,7 +105,7 @@ export function createBehaviorController(options: BehaviorControllerOptions): Be
       if (snapshot.state === "idle") {
         if (now - snapshot.lastInteractionAt >= snapshot.config.sleep_after_idle_seconds * 1000) {
           enter("sleep", now);
-        } else if (now >= snapshot.nextWalkAt && snapshot.config.walk_mode === "short_range") {
+        } else if (now >= snapshot.nextWalkAt && canEnterAutonomousWalk()) {
           enter("walk", now);
         }
       }

@@ -131,9 +131,19 @@ describe("BehaviorController", () => {
     expect(behavior.snapshot().state).toBe("walk");
   });
 
-  it("does not start autonomous walk when walk mode is stationary", () => {
+  it("starts autonomous walk for stationary mode so rendering can show in-place walking", () => {
     const behavior = controllerWithConfig({
       walk_mode: "stationary"
+    });
+
+    behavior.update(240000);
+
+    expect(behavior.snapshot().state).toBe("walk");
+  });
+
+  it("keeps roaming disabled for autonomous walk", () => {
+    const behavior = controllerWithConfig({
+      walk_mode: "roaming"
     });
 
     behavior.update(240000);
